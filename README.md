@@ -199,7 +199,7 @@ docs/
 
 ## Contribuir
 
-Las contribuciones son bienvenidas cuando respeten el alcance del proyecto: descubrimiento de red autorizado, documentación, mejoras de UX, compatibilidad macOS/iPadOS, rendimiento y calidad de datos. Consulta [CONTRIBUTING.md](CONTRIBUTING.md).
+Las contribuciones son bienvenidas cuando respeten el alcance del proyecto: descubrimiento de red autorizado, documentación, mejoras de UX, compatibilidad macOS/iPadOS, rendimiento y calidad de datos. Consulta [CONTRIBUTING.md](CONTRIBUTING.md). Si trabajas con agentes de IA o automatizaciones, revisa [AGENTS.md](AGENTS.md) antes de proponer cambios.
 
 ## Licencia y Marca
 
