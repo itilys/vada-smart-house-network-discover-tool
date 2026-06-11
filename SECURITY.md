@@ -1,0 +1,17 @@
+# Security Policy
+
+## Uso previsto
+
+VaDa Network Discover está diseñado para descubrir equipos y puertos abiertos en redes locales propias o explícitamente autorizadas.
+
+No está diseñado como herramienta ofensiva, no intenta explotar servicios y no debe ejecutarse contra redes de terceros sin permiso.
+
+## Reportar problemas de seguridad
+
+Para vulnerabilidades o comportamientos que puedan afectar a usuarios, abre un reporte privado mediante GitHub Security Advisories si está habilitado en el repositorio.
+
+Si no puedes usar un advisory privado, abre un issue con una descripción general y evita publicar datos sensibles, credenciales, IPs privadas de clientes o pasos de abuso reproducibles contra terceros.
+
+## Datos sensibles
+
+Los ficheros JSON exportados por la app pueden contener IPs, nombres de host, MACs, puertos abiertos, secciones, anotaciones y mapas de red. Trátalos como información sensible de la instalación.

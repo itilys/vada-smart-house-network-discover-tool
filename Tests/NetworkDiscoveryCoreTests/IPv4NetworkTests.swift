@@ -1,0 +1,342 @@
+import XCTest
+@testable import NetworkDiscoveryCore
+
+final class IPv4NetworkTests: XCTestCase {
+    func testCIDRExcludesNetworkAndBroadcastForSlashThirty() throws {
+        let network = try IPv4Network("192.168.1.0/30")
+        XCTAssertEqual(try network.hosts(), ["192.168.1.1", "192.168.1.2"])
+    }
+
+    func testSingleHostCIDRIncludesHost() throws {
+        let network = try IPv4Network("10.0.0.8/32")
+        XCTAssertEqual(try network.hosts(), ["10.0.0.8"])
+    }
+
+    func testWildcardSegmentExpandsUsableRange() throws {
+        let network = try IPv4Network("172.16.4.*")
+        let hosts = try network.hosts()
+        XCTAssertEqual(hosts.first, "172.16.4.1")
+        XCTAssertEqual(hosts.last, "172.16.4.254")
+        XCTAssertEqual(hosts.count, 254)
+    }
+
+    func testLastOctetRange() throws {
+        let network = try IPv4Network("192.168.7.20-22")
+        XCTAssertEqual(try network.hosts(), ["192.168.7.20", "192.168.7.21", "192.168.7.22"])
+    }
+
+    func testPortParsingSupportsRangesAndDeduplication() throws {
+        XCTAssertEqual(try PortCatalog.parsePorts("22,80,80,500-502"), [22, 80, 500, 501, 502])
+    }
+
+    func testIPAvailabilityReportBuildsFreeRanges() throws {
+        let report = try IPAvailabilityReport.build(
+            segment: "192.168.1.0/29",
+            occupiedIPAddresses: [
+                "192.168.1.1",
+                "192.168.1.3",
+                "192.168.1.6"
+            ]
+        )
+
+        XCTAssertEqual(report.usableAddressCount, 6)
+        XCTAssertEqual(report.occupiedAddressCount, 3)
+        XCTAssertEqual(report.freeAddressCount, 3)
+        XCTAssertEqual(report.ranges.map(\.addressLabel), [
+            "192.168.1.2",
+            "192.168.1.4 - 192.168.1.5"
+        ])
+        XCTAssertTrue(report.plainText.contains("192.168.1.4 - 192.168.1.5"))
+        XCTAssertTrue(report.csvText.contains("192.168.1.0/24,192.168.1.4,192.168.1.5,2"))
+    }
+
+    func testIPAvailabilityReportMarksFreeAddressesInsideDHCPPool() throws {
+        let report = try IPAvailabilityReport.build(
+            segment: "192.168.1.0/29",
+            occupiedIPAddresses: ["192.168.1.1"],
+            dhcpRanges: [
+                DHCPRange(startAddress: "192.168.1.4", endAddress: "192.168.1.5")
+            ]
+        )
+
+        XCTAssertEqual(report.staticFreeAddressCount, 3)
+        XCTAssertEqual(report.dhcpFreeAddressCount, 2)
+        XCTAssertEqual(report.ranges.map(\.kind), [
+            .staticCandidate,
+            .dhcpPool,
+            .staticCandidate
+        ])
+        XCTAssertTrue(report.plainText.contains("Libres DHCP: 2"))
+        XCTAssertTrue(report.csvText.contains("192.168.1.0/24,192.168.1.4,192.168.1.5,2,DHCP"))
+    }
+
+    func testIPAvailabilityReportSplitsLargeSegmentsBySubnet() throws {
+        let report = try IPAvailabilityReport.build(
+            segment: "192.168.0.0/23",
+            occupiedIPAddresses: [
+                "192.168.0.1",
+                "192.168.1.254"
+            ]
+        )
+
+        XCTAssertEqual(report.ranges.first?.addressLabel, "192.168.0.2 - 192.168.0.254")
+        XCTAssertEqual(report.ranges.last?.addressLabel, "192.168.1.1 - 192.168.1.253")
+        XCTAssertEqual(Set(report.ranges.map(\.subnetLabel)), [
+            "192.168.0.0/24",
+            "192.168.1.0/24"
+        ])
+    }
+
+    func testVaDaSolarPortIsCataloguedAsHTTPDeviceSignal() {
+        let definition = PortCatalog.definition(for: 8090)
+        let host = HostDiscovery(
+            ipAddress: "192.168.1.90",
+            hostname: "solarbrain.local",
+            pingResponded: false,
+            systemType: SystemClassifier.classify(
+                hostname: "solarbrain.local",
+                openPorts: [
+                    OpenPort(port: definition.port, name: definition.name, category: definition.category)
+                ],
+                pingResponded: false
+            ),
+            openPorts: []
+        )
+
+        XCTAssertTrue(PortCatalog.defaultPorts.contains { $0.port == 8090 })
+        XCTAssertTrue(PortCatalog.isHTTP(8090))
+        XCTAssertEqual(definition.name, "VaDa Solar")
+        XCTAssertEqual(host.systemType, "VaDa SolarBrain / SolarGenius")
+    }
+
+    func testMermaidMapUsesReadableLineBreaks() {
+        let host = HostDiscovery(
+            ipAddress: "127.0.0.1",
+            hostname: "localhost",
+            pingResponded: true,
+            systemType: "Equipo con ping",
+            openPorts: []
+        )
+
+        let map = NetworkMapRenderer.mermaid(segment: "127.0.0.1", hosts: [host])
+        XCTAssertTrue(map.contains("127.0.0.1<br/>localhost<br/>Equipo con ping"))
+    }
+
+    func testMermaidMapRoutesThroughMarkedRouter() {
+        let router = HostDiscovery(
+            ipAddress: "192.168.1.1",
+            hostname: "router.local",
+            pingResponded: true,
+            systemType: "Router / gateway",
+            openPorts: []
+        )
+        let host = HostDiscovery(
+            ipAddress: "192.168.1.20",
+            hostname: nil,
+            pingResponded: true,
+            systemType: "Equipo con ping",
+            openPorts: []
+        )
+
+        let map = NetworkMapRenderer.mermaid(
+            segment: "192.168.1.0/24",
+            hosts: [router, host],
+            routerHostID: router.id
+        )
+
+        XCTAssertTrue(map.contains("network --> host_192_168_1_1"))
+        XCTAssertTrue(map.contains("host_192_168_1_1 --> host_192_168_1_20"))
+        XCTAssertTrue(map.contains("router.local<br/>Router<br/>Router / gateway"))
+    }
+
+    func testMermaidMapCanGroupByAddressAssignment() {
+        let router = HostDiscovery(
+            ipAddress: "192.168.1.1",
+            hostname: "router.local",
+            pingResponded: true,
+            systemType: "Router / gateway",
+            openPorts: []
+        )
+        let staticHost = HostDiscovery(
+            ipAddress: "192.168.1.20",
+            hostname: "camera.local",
+            pingResponded: true,
+            systemType: "Cámara IP / vídeo",
+            openPorts: []
+        )
+        let dynamicHost = HostDiscovery(
+            ipAddress: "192.168.1.51",
+            hostname: nil,
+            pingResponded: true,
+            systemType: "Equipo con ping",
+            openPorts: []
+        )
+
+        let map = NetworkMapRenderer.mermaid(
+            segment: "192.168.1.0/24",
+            hosts: [router, staticHost, dynamicHost],
+            routerHostID: router.id,
+            annotations: [
+                staticHost.id: HostAnnotation(addressAssignment: .staticAddress, section: "Planta 1"),
+                dynamicHost.id: HostAnnotation(addressAssignment: .dynamicAddress, section: "Planta 2")
+            ],
+            organization: .addressAssignment
+        )
+
+        XCTAssertTrue(map.contains("IP estática"))
+        XCTAssertTrue(map.contains("IP dinámica"))
+        XCTAssertTrue(map.contains("camera.local<br/>Cámara IP / vídeo<br/>IP estática<br/>Planta 1"))
+    }
+
+    func testMermaidMapCanUseMultipleRoutersAndSubnetGroups() {
+        let externalRouter = HostDiscovery(
+            ipAddress: "192.168.0.1",
+            hostname: "wan-router",
+            pingResponded: true,
+            systemType: "Router / gateway",
+            openPorts: []
+        )
+        let internalRouter = HostDiscovery(
+            ipAddress: "192.168.1.254",
+            hostname: "velop4400",
+            pingResponded: true,
+            systemType: "Router / gateway",
+            openPorts: []
+        )
+        let externalHost = HostDiscovery(
+            ipAddress: "192.168.0.10",
+            hostname: "dmz.local",
+            pingResponded: true,
+            systemType: "Servicio web / dispositivo",
+            openPorts: []
+        )
+        let internalHost = HostDiscovery(
+            ipAddress: "192.168.1.30",
+            hostname: "iot.local",
+            pingResponded: true,
+            systemType: "IoT / broker MQTT",
+            openPorts: []
+        )
+
+        let map = NetworkMapRenderer.mermaid(
+            segment: "192.168.0.0/23",
+            hosts: [externalRouter, internalRouter, externalHost, internalHost],
+            routerHostIDs: [externalRouter.id, internalRouter.id],
+            defaultInternetHostID: externalRouter.id,
+            organization: .subnet
+        )
+
+        XCTAssertTrue(map.contains("network --> host_192_168_0_1"))
+        XCTAssertTrue(map.contains("network --> host_192_168_1_254"))
+        XCTAssertTrue(map.contains("Salida Internet"))
+        XCTAssertTrue(map.contains("host_192_168_0_1 --> group_192_168_0_0_24"))
+        XCTAssertTrue(map.contains("host_192_168_1_254 --> group_192_168_1_0_24"))
+        XCTAssertTrue(map.contains("group_192_168_0_0_24 --> host_192_168_0_10"))
+        XCTAssertTrue(map.contains("group_192_168_1_0_24 --> host_192_168_1_30"))
+    }
+
+    func testSavedScanRoundTripsConfigurationAndRouter() throws {
+        let document = SavedScan(
+            configuration: ScanConfiguration(
+                segment: "10.0.0.0/30",
+                ports: [22, 80, 502],
+                timeout: 0.5,
+                concurrency: 8,
+                includePing: true
+            ),
+            hosts: [
+                HostDiscovery(
+                    ipAddress: "10.0.0.1",
+                    hostname: "router.local",
+                    macAddress: "aa:bb:cc:dd:ee:ff",
+                    pingResponded: true,
+                    systemType: "Router / gateway",
+                    openPorts: []
+                )
+            ],
+            routerHostID: "10.0.0.1",
+            routerHostIDs: ["10.0.0.1", "10.0.0.2"],
+            defaultInternetHostID: "10.0.0.1",
+            dhcpRanges: [
+                DHCPRange(startAddress: "10.0.0.10", endAddress: "10.0.0.20")
+            ],
+            annotations: [
+                "10.0.0.1": HostAnnotation(
+                    addressAssignment: .dhcpReservation,
+                    section: "Rack comunicaciones",
+                    isMissing: true,
+                    lastSeen: Date(timeIntervalSince1970: 42)
+                )
+            ],
+            mapOrganization: .section
+        )
+
+        let data = try JSONEncoder().encode(document)
+        let decoded = try JSONDecoder().decode(SavedScan.self, from: data)
+
+        XCTAssertEqual(decoded.configuration.segment, "10.0.0.0/30")
+        XCTAssertEqual(decoded.configuration.ports, [22, 80, 502])
+        XCTAssertEqual(decoded.routerHostID, "10.0.0.1")
+        XCTAssertEqual(decoded.routerHostIDs, ["10.0.0.1", "10.0.0.2"])
+        XCTAssertEqual(decoded.defaultInternetHostID, "10.0.0.1")
+        XCTAssertEqual(decoded.dhcpRanges.first?.addressLabel, "10.0.0.10 - 10.0.0.20")
+        XCTAssertEqual(decoded.hosts.first?.hostname, "router.local")
+        XCTAssertEqual(decoded.hosts.first?.macAddress, "aa:bb:cc:dd:ee:ff")
+        XCTAssertEqual(decoded.annotations["10.0.0.1"]?.addressAssignment, .dhcpReservation)
+        XCTAssertEqual(decoded.annotations["10.0.0.1"]?.section, "Rack comunicaciones")
+        XCTAssertEqual(decoded.annotations["10.0.0.1"]?.isMissing, true)
+        XCTAssertEqual(decoded.annotations["10.0.0.1"]?.lastSeen, Date(timeIntervalSince1970: 42))
+        XCTAssertEqual(decoded.mapOrganization, .section)
+    }
+
+    func testSavedScanDecodesLegacyDocumentWithoutRefreshMetadata() throws {
+        let data = Data(
+            """
+            {
+              "annotations": {
+                "192.168.1.241": {
+                  "addressAssignment": "staticAddress",
+                  "section": "Camaras"
+                }
+              },
+              "configuration": {
+                "concurrency": 64,
+                "includePing": true,
+                "maximumHosts": 4096,
+                "ports": [22, 80, 443, 502],
+                "segment": "192.168.1.0/24",
+                "timeout": 3
+              },
+              "hosts": [
+                {
+                  "discoveredAt": "2026-06-03T21:58:29Z",
+                  "hostname": "camara.local",
+                  "ipAddress": "192.168.1.241",
+                  "openPorts": [],
+                  "pingResponded": true,
+                  "systemType": "Cámara IP / vídeo"
+                }
+              ],
+              "mapOrganization": "section",
+              "routerHostID": null,
+              "savedAt": "2026-06-03T21:59:00Z",
+              "schemaVersion": 2
+            }
+            """.utf8
+        )
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(SavedScan.self, from: data)
+
+        XCTAssertEqual(decoded.schemaVersion, 2)
+        XCTAssertNil(decoded.hosts.first?.macAddress)
+        XCTAssertEqual(decoded.routerHostIDs, [])
+        XCTAssertNil(decoded.defaultInternetHostID)
+        XCTAssertEqual(decoded.dhcpRanges, [])
+        XCTAssertEqual(decoded.annotations["192.168.1.241"]?.addressAssignment, .staticAddress)
+        XCTAssertEqual(decoded.annotations["192.168.1.241"]?.section, "Camaras")
+        XCTAssertEqual(decoded.annotations["192.168.1.241"]?.isMissing, false)
+        XCTAssertNil(decoded.annotations["192.168.1.241"]?.lastSeen)
+    }
+}

@@ -1,0 +1,21 @@
+.DS_Store
+
+# Swift Package Manager
+.build/
+.build-ios/
+.swiftpm/
+
+# Xcode / Apple build outputs
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
+# Generated application bundles and release zips
+dist/
+dist-ios-sim/
+
+# Local/editor files
+.vscode/
+.idea/
+*.swp
