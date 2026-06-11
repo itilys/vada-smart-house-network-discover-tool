@@ -15,6 +15,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
+clean_bundle_metadata() {
+  local bundle="$1"
+
+  xattr -cr "$bundle" 2>/dev/null || true
+  xattr -dr com.apple.FinderInfo "$bundle" 2>/dev/null || true
+  xattr -dr 'com.apple.fileprovider.fpfs#P' "$bundle" 2>/dev/null || true
+}
+
 swift build --disable-sandbox -c release --product NetworkDiscoverApp
 
 rm -rf "$TMP_APP"
@@ -74,16 +82,16 @@ PLIST
 
 printf "APPL????" > "$TMP_APP/Contents/PkgInfo"
 
-xattr -cr "$TMP_APP" 2>/dev/null || true
+clean_bundle_metadata "$TMP_APP"
 codesign --force --deep --sign - "$TMP_APP" >/dev/null 2>&1 || true
 
 rm -rf "$DIST_APP" "$DIST_ZIP" "$DIST_DIR/Network Discover.app" "$DIST_DIR/NetworkDiscover-macOS.zip"
 mkdir -p "$DIST_DIR"
 ditto --norsrc "$TMP_APP" "$DIST_APP"
-xattr -cr "$DIST_APP" 2>/dev/null || true
+clean_bundle_metadata "$DIST_APP"
 codesign --force --deep --sign - "$DIST_APP" >/dev/null 2>&1 || true
 ditto -c -k --norsrc --keepParent "$DIST_APP" "$DIST_ZIP"
-xattr -cr "$DIST_APP" 2>/dev/null || true
+clean_bundle_metadata "$DIST_APP"
 codesign --force --deep --sign - "$DIST_APP" >/dev/null 2>&1 || true
 
 echo "$DIST_APP"

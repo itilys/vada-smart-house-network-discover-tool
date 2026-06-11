@@ -14,10 +14,11 @@ struct NetworkDiscoverApp: App {
         WindowGroup("VaDa Network Discover") {
             ContentView()
 #if os(macOS)
-                .frame(minWidth: 1080, minHeight: 680)
+                .frame(minWidth: 1320, minHeight: 760)
 #endif
         }
 #if os(macOS)
+        .defaultSize(width: 1440, height: 860)
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .appInfo) {

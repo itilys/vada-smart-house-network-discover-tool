@@ -15,13 +15,13 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             sidebar
-                .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 360)
+                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 420)
         } content: {
             HostListView(model: model)
-            .navigationSplitViewColumnWidth(min: 420, ideal: 520)
+                .navigationSplitViewColumnWidth(min: 430, ideal: 520)
         } detail: {
             DetailPanel(model: model)
-                .navigationSplitViewColumnWidth(min: 420, ideal: 560)
+                .navigationSplitViewColumnWidth(min: 540, ideal: 700)
         }
         .alert(
             "No se pudo escanear",
@@ -191,14 +191,18 @@ private struct ScanSidebar: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("VaDa Network Discover")
                         .font(.title3.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.86)
                     Text("Utilidad gratuita para redes locales")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
             Text("VaDa SmartHouse")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -474,48 +478,50 @@ private struct HostListView: View {
                 }
             }
 
-            TextField("Filtrar por nombre, IP, tipo o puerto", text: $model.searchText)
-                .textFieldStyle(.roundedBorder)
+            if !model.hosts.isEmpty {
+                TextField("Filtrar por nombre, IP, tipo o puerto", text: $model.searchText)
+                    .textFieldStyle(.roundedBorder)
 
-            HStack(spacing: 8) {
-                Picker("Tipo", selection: $model.selectedTypeFilter) {
-                    ForEach(model.typeFilters, id: \.self) { type in
-                        Text(type).tag(type)
+                HStack(spacing: 8) {
+                    Picker("Tipo", selection: $model.selectedTypeFilter) {
+                        ForEach(model.typeFilters, id: \.self) { type in
+                            Text(type).tag(type)
+                        }
                     }
-                }
-                .labelsHidden()
-                .frame(maxWidth: .infinity)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
 
-                Picker(
-                    "Puerto",
-                    selection: Binding(
-                        get: { model.selectedPortFilter ?? -1 },
-                        set: { model.selectedPortFilter = $0 == -1 ? nil : $0 }
-                    )
-                ) {
-                    Text("Todos").tag(-1)
-                    ForEach(model.portFilters, id: \.self) { port in
-                        Text("\(port)").tag(port)
+                    Picker(
+                        "Puerto",
+                        selection: Binding(
+                            get: { model.selectedPortFilter ?? -1 },
+                            set: { model.selectedPortFilter = $0 == -1 ? nil : $0 }
+                        )
+                    ) {
+                        Text("Todos").tag(-1)
+                        ForEach(model.portFilters, id: \.self) { port in
+                            Text("\(port)").tag(port)
+                        }
                     }
+                    .labelsHidden()
+                    .frame(width: 105)
                 }
-                .labelsHidden()
-                .frame(width: 105)
-            }
 
-            HStack(spacing: 8) {
-                Picker("Orden", selection: $model.sortOption) {
-                    ForEach(HostSortOption.allCases) { option in
-                        Text(option.label).tag(option)
+                HStack(spacing: 8) {
+                    Picker("Orden", selection: $model.sortOption) {
+                        ForEach(HostSortOption.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
                     }
-                }
-                .labelsHidden()
+                    .labelsHidden()
 
-                Button {
-                    model.sortAscending.toggle()
-                } label: {
-                    Image(systemName: model.sortAscending ? "arrow.up" : "arrow.down")
+                    Button {
+                        model.sortAscending.toggle()
+                    } label: {
+                        Image(systemName: model.sortAscending ? "arrow.up" : "arrow.down")
+                    }
+                    .help(model.sortAscending ? "Orden ascendente" : "Orden descendente")
                 }
-                .help(model.sortAscending ? "Orden ascendente" : "Orden descendente")
             }
 
             if let feedback = model.actionFeedback {
@@ -729,65 +735,10 @@ private struct DetailPanel: View {
         )
 
         VStack(spacing: 14) {
-            HStack {
-                Text("Mapa")
-                    .font(.title2.weight(.semibold))
-                Spacer()
-                Picker("Organización", selection: $model.mapOrganization) {
-                    ForEach(NetworkMapOrganization.allCases, id: \.rawValue) { organization in
-                        Text(organization.label).tag(organization)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 128)
-
-                MapZoomControls(
-                    zoom: Binding(
-                        get: { mapZoom },
-                        set: { newValue in
-                            mapZoom = newValue
-                            gestureBaseZoom = newValue
-                        }
-                    ),
-                    onReset: resetZoom
-                )
-
-                Button {
-                    presentFreeAddressReport()
-                } label: {
-                    ViewThatFits(in: .horizontal) {
-                        Label("Rangos libres", systemImage: "list.bullet.rectangle")
-                        Image(systemName: "list.bullet.rectangle")
-                    }
-                }
-                .disabled(model.hosts.isEmpty)
-                .help("Ver rangos de IP libres")
-
-                Button {
-                    exportMapImage(mapSize: mapSize)
-                } label: {
-                    ViewThatFits(in: .horizontal) {
-                        Label("Exportar PNG", systemImage: "photo")
-                        Image(systemName: "photo")
-                    }
-                }
-                .disabled(model.hosts.isEmpty)
-                .help("Exportar mapa como imagen PNG")
-
-                Button {
-                    model.copyMermaidMap()
-                } label: {
-                    ViewThatFits(in: .horizontal) {
-                        Label("Copiar Mermaid", systemImage: "doc.on.doc")
-                        Image(systemName: "doc.on.doc")
-                    }
-                }
-                .disabled(model.hosts.isEmpty)
-                .help("Copiar Mermaid")
-            }
+            mapHeader(mapSize: mapSize)
 
             splitContent(mapSize: mapSize)
-                .frame(minHeight: 700)
+                .frame(minHeight: 640)
         }
         .padding(18)
         .sheet(item: $freeAddressReport) { report in
@@ -805,6 +756,101 @@ private struct DetailPanel: View {
                 onExport: model.exportFreeAddressReport
             )
         }
+    }
+
+    private func mapHeader(mapSize: CGSize) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Mapa")
+                    .font(.title2.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+
+                Spacer()
+
+                Text(mapHeaderSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+
+            ViewThatFits(in: .horizontal) {
+                mapToolbar(mapSize: mapSize)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    mapToolbar(mapSize: mapSize)
+                }
+            }
+        }
+    }
+
+    private var mapHeaderSummary: String {
+        if model.hosts.isEmpty {
+            return model.segment
+        }
+
+        return "\(model.visibleHosts.count)/\(model.hosts.count) equipos"
+    }
+
+    private func mapToolbar(mapSize: CGSize) -> some View {
+        HStack(spacing: 10) {
+            Picker("Organización", selection: $model.mapOrganization) {
+                ForEach(NetworkMapOrganization.allCases, id: \.rawValue) { organization in
+                    Text(organization.label).tag(organization)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 128)
+
+            MapZoomControls(
+                zoom: Binding(
+                    get: { mapZoom },
+                    set: { newValue in
+                        mapZoom = newValue
+                        gestureBaseZoom = newValue
+                    }
+                ),
+                onReset: resetZoom
+            )
+            .disabled(model.visibleHosts.isEmpty)
+
+            Spacer(minLength: 0)
+
+            Button {
+                presentFreeAddressReport()
+            } label: {
+                ViewThatFits(in: .horizontal) {
+                    Label("Rangos libres", systemImage: "list.bullet.rectangle")
+                    Image(systemName: "list.bullet.rectangle")
+                }
+            }
+            .disabled(model.hosts.isEmpty)
+            .help("Ver rangos de IP libres")
+
+            Button {
+                exportMapImage(mapSize: mapSize)
+            } label: {
+                ViewThatFits(in: .horizontal) {
+                    Label("Exportar PNG", systemImage: "photo")
+                    Image(systemName: "photo")
+                }
+            }
+            .disabled(model.hosts.isEmpty)
+            .help("Exportar mapa como imagen PNG")
+
+            Button {
+                model.copyMermaidMap()
+            } label: {
+                ViewThatFits(in: .horizontal) {
+                    Label("Copiar Mermaid", systemImage: "doc.on.doc")
+                    Image(systemName: "doc.on.doc")
+                }
+            }
+            .disabled(model.hosts.isEmpty)
+            .help("Copiar Mermaid")
+        }
+        .controlSize(.regular)
     }
 
     @ViewBuilder
@@ -828,100 +874,113 @@ private struct DetailPanel: View {
 #endif
     }
 
+    @ViewBuilder
     private func mapPane(mapSize: CGSize) -> some View {
-        GeometryReader { proxy in
-            let canvasWidth = max(mapSize.width, proxy.size.width / mapZoom)
-            let canvasHeight = max(mapSize.height, proxy.size.height / mapZoom)
+        if model.visibleHosts.isEmpty {
+            EmptyMapPane(segment: model.segment)
+                .frame(minHeight: 420, idealHeight: 560)
+                .layoutPriority(1)
+        } else {
+            GeometryReader { proxy in
+                let canvasWidth = max(mapSize.width, proxy.size.width / mapZoom)
+                let canvasHeight = max(mapSize.height, proxy.size.height / mapZoom)
 
-            ScrollView([.vertical, .horizontal]) {
-                NetworkMapView(
-                    segment: model.segment,
-                    hosts: model.visibleHosts,
-                    selectedHostID: $model.selectedHostID,
-                    routerHostIDs: model.routerHostIDs,
-                    defaultInternetHostID: model.defaultInternetHostID,
-                    annotations: model.hostAnnotations,
-                    refreshStatuses: model.refreshStatuses,
-                    organization: model.mapOrganization,
-                    onOpen: { host in
-                        model.openBestWebPort(for: host)
-                    },
-                    onMarkRouter: { host in
-                        model.markRouter(host)
+                ScrollView([.vertical, .horizontal]) {
+                    NetworkMapView(
+                        segment: model.segment,
+                        hosts: model.visibleHosts,
+                        selectedHostID: $model.selectedHostID,
+                        routerHostIDs: model.routerHostIDs,
+                        defaultInternetHostID: model.defaultInternetHostID,
+                        annotations: model.hostAnnotations,
+                        refreshStatuses: model.refreshStatuses,
+                        organization: model.mapOrganization,
+                        onOpen: { host in
+                            model.openBestWebPort(for: host)
+                        },
+                        onMarkRouter: { host in
+                            model.markRouter(host)
+                        }
+                    )
+                    .frame(
+                        width: canvasWidth,
+                        height: canvasHeight
+                    )
+                    .scaleEffect(mapZoom, anchor: .topLeading)
+                    .frame(
+                        width: canvasWidth * mapZoom,
+                        height: canvasHeight * mapZoom,
+                        alignment: .topLeading
+                    )
+                }
+                .background(MapPanelBackground())
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                }
+            }
+            .frame(minHeight: 420, idealHeight: 560)
+            .layoutPriority(1)
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        mapZoom = clampZoom(gestureBaseZoom * value)
                     }
-                )
-                .frame(
-                    width: canvasWidth,
-                    height: canvasHeight
-                )
-                .scaleEffect(mapZoom, anchor: .topLeading)
-                .frame(
-                    width: canvasWidth * mapZoom,
-                    height: canvasHeight * mapZoom,
-                    alignment: .topLeading
-                )
-            }
-            .background(MapPanelBackground())
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-            }
+                    .onEnded { _ in
+                        gestureBaseZoom = mapZoom
+                    }
+            )
         }
-        .frame(minHeight: 380, idealHeight: 560)
-        .layoutPriority(1)
-        .simultaneousGesture(
-            MagnificationGesture()
-                .onChanged { value in
-                    mapZoom = clampZoom(gestureBaseZoom * value)
-                }
-                .onEnded { _ in
-                    gestureBaseZoom = mapZoom
-                }
-        )
     }
 
+    @ViewBuilder
     private var detailPane: some View {
-        SelectedHostDetail(
-            host: model.selectedHost,
-            isRouter: model.selectedHostID.map { model.routerHostIDs.contains($0) } ?? false,
-            isDefaultInternet: model.selectedHostID == model.defaultInternetHostID,
-            annotation: model.selectedHost.map { model.annotation(for: $0) } ?? HostAnnotation(),
-            refreshStatus: model.selectedHostID.flatMap { model.refreshStatuses[$0] },
-            webURL: model.selectedHost.flatMap(model.bestWebURL),
-            onOpen: {
-                if let host = model.selectedHost {
-                    model.openBestWebPort(for: host)
+        if model.hosts.isEmpty {
+            EmptyDetailPane()
+                .frame(minHeight: 180, idealHeight: 220)
+        } else {
+            SelectedHostDetail(
+                host: model.selectedHost,
+                isRouter: model.selectedHostID.map { model.routerHostIDs.contains($0) } ?? false,
+                isDefaultInternet: model.selectedHostID == model.defaultInternetHostID,
+                annotation: model.selectedHost.map { model.annotation(for: $0) } ?? HostAnnotation(),
+                refreshStatus: model.selectedHostID.flatMap { model.refreshStatuses[$0] },
+                webURL: model.selectedHost.flatMap(model.bestWebURL),
+                onOpen: {
+                    if let host = model.selectedHost {
+                        model.openBestWebPort(for: host)
+                    }
+                },
+                onMarkRouter: {
+                    if let host = model.selectedHost {
+                        model.markRouter(host)
+                    }
+                },
+                onClearRouter: {
+                    if let host = model.selectedHost {
+                        model.clearRouter(host)
+                    }
+                },
+                onMarkDefaultInternet: {
+                    if let host = model.selectedHost {
+                        model.markDefaultInternet(host)
+                    }
+                },
+                onClearDefaultInternet: model.clearDefaultInternet,
+                onAddressAssignmentChange: { assignment in
+                    if let host = model.selectedHost {
+                        model.setAddressAssignment(assignment, for: host)
+                    }
+                },
+                onSectionChange: { section in
+                    if let host = model.selectedHost {
+                        model.setSection(section, for: host)
+                    }
                 }
-            },
-            onMarkRouter: {
-                if let host = model.selectedHost {
-                    model.markRouter(host)
-                }
-            },
-            onClearRouter: {
-                if let host = model.selectedHost {
-                    model.clearRouter(host)
-                }
-            },
-            onMarkDefaultInternet: {
-                if let host = model.selectedHost {
-                    model.markDefaultInternet(host)
-                }
-            },
-            onClearDefaultInternet: model.clearDefaultInternet,
-            onAddressAssignmentChange: { assignment in
-                if let host = model.selectedHost {
-                    model.setAddressAssignment(assignment, for: host)
-                }
-            },
-            onSectionChange: { section in
-                if let host = model.selectedHost {
-                    model.setSection(section, for: host)
-                }
-            }
-        )
-        .frame(minHeight: 260, idealHeight: 320)
+            )
+            .frame(minHeight: 240, idealHeight: 300)
+        }
     }
 
     private func resetZoom() {
@@ -1334,6 +1393,82 @@ private struct MapPanelBackground: View {
             Color(red: 0.075, green: 0.085, blue: 0.095),
             Color(red: 0.105, green: 0.115, blue: 0.125)
         ]
+    }
+}
+
+private struct EmptyMapPane: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let segment: String
+
+    var body: some View {
+        ZStack {
+            MapPanelBackground()
+
+            SubtleMapGrid()
+                .stroke(.secondary.opacity(colorScheme == .light ? 0.10 : 0.08), lineWidth: 1)
+
+            VStack(spacing: 8) {
+                Image(systemName: "network")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(segment)
+                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text("0 equipos")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 30)
+            .padding(.vertical, 22)
+            .frame(width: 280)
+            .glassPanel(cornerRadius: 20)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        }
+    }
+}
+
+private struct EmptyDetailPane: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "cursorarrow.click")
+                .font(.title2.weight(.medium))
+                .foregroundStyle(.secondary)
+            Text("Sin selección")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(14)
+        .glassPanel(cornerRadius: 18)
+    }
+}
+
+private struct SubtleMapGrid: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let step: CGFloat = 44
+
+        var x = rect.minX
+        while x <= rect.maxX {
+            path.move(to: CGPoint(x: x, y: rect.minY))
+            path.addLine(to: CGPoint(x: x, y: rect.maxY))
+            x += step
+        }
+
+        var y = rect.minY
+        while y <= rect.maxY {
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.addLine(to: CGPoint(x: rect.maxX, y: y))
+            y += step
+        }
+
+        return path
     }
 }
 
