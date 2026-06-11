@@ -2,6 +2,8 @@
 
 Gracias por ayudar a mejorar VaDa Network Discover.
 
+Si trabajas con agentes de IA o automatizaciones, lee también [AGENTS.md](AGENTS.md). Contiene las reglas de rama, PR, validación y privacidad para este repositorio público.
+
 ## Alcance del proyecto
 
 Este repositorio acepta cambios orientados a:
