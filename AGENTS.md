@@ -97,17 +97,20 @@ network data.
 
 Use short, readable branch names tied to one goal:
 
-- `feature-<short-name>` for product or UX work;
-- `fix-<short-name>` for bug fixes;
-- `docs-<short-name>` for documentation-only work;
-- `chore-<short-name>` for maintenance.
+- `feature/<short-name>` for product or UX work;
+- `fix/<short-name>` for bug fixes;
+- `docs/<short-name>` for documentation-only work;
+- `chore/<short-name>` for maintenance.
+
+Use `/` as the namespace separator. Do not replace it with `-` unless a specific
+tooling limitation is documented in the PR.
 
 Examples:
 
 ```text
-feature-initial-layout-polish
-docs-security-guidance
-fix-port-parser-range
+feature/initial-layout-polish
+docs/security-guidance
+fix/port-parser-range
 ```
 
 Do not reuse an old branch for a new scope. Delete merged feature branches from
@@ -273,4 +276,3 @@ Before closing a task:
 - [ ] tests/builds run, or limitations explained;
 - [ ] PR opened or next step clearly stated;
 - [ ] release/deployment status explicitly stated.
-
