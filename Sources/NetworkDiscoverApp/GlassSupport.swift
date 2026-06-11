@@ -10,7 +10,7 @@ struct GlassGroup<Content: View>: View {
     }
 
     var body: some View {
-#if os(macOS)
+#if os(macOS) && compiler(>=6.3)
         if #available(macOS 26.0, *) {
             GlassEffectContainer(spacing: spacing) {
                 content()
@@ -39,7 +39,7 @@ private struct GlassPanelModifier: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
-#if os(macOS)
+#if os(macOS) && compiler(>=6.3)
         if #available(macOS 26.0, *), colorScheme == .dark {
             if interactive {
                 content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
@@ -68,7 +68,7 @@ struct PrimaryGlassButton<LabelContent: View>: View {
     @ViewBuilder var label: () -> LabelContent
 
     var body: some View {
-#if os(macOS)
+#if os(macOS) && compiler(>=6.3)
         if #available(macOS 26.0, *) {
             Button(action: action, label: label)
                 .buttonStyle(.glassProminent)
