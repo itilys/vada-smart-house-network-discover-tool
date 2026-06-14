@@ -1,5 +1,8 @@
 import Foundation
 
+// Keep per-host TCP pressure low; embedded/industrial devices often drop bursts.
+private let maximumPortWorkersPerHost = 4
+
 public struct NetworkScanner: Sendable {
     public init() {}
 
@@ -91,30 +94,13 @@ private func scanHost(ipAddress: String, configuration: ScanConfiguration) async
 
 private func scanPorts(ipAddress: String, ports: [Int], timeout: TimeInterval) async -> [OpenPort] {
     await withTaskGroup(of: OpenPort?.self) { group in
-        for port in ports {
+        var iterator = ports.makeIterator()
+        let workers = min(maximumPortWorkersPerHost, ports.count)
+
+        for _ in 0..<workers {
+            guard let port = iterator.next() else { break }
             group.addTask {
-                guard await TCPProbe.isOpen(ipAddress: ipAddress, port: port, timeout: timeout) else {
-                    return nil
-                }
-
-                let definition = PortCatalog.definition(for: port)
-                var openPort = OpenPort(
-                    port: definition.port,
-                    name: definition.name,
-                    category: definition.category
-                )
-
-                if PortCatalog.isHTTP(port) || PortCatalog.isHTTPS(port) {
-                    let fingerprint = await HTTPFingerprintProbe.fingerprint(
-                        ipAddress: ipAddress,
-                        port: port,
-                        timeout: max(timeout, 1.2)
-                    )
-                    openPort.server = fingerprint?.server
-                    openPort.title = fingerprint?.title
-                }
-
-                return openPort
+                await scanPort(ipAddress: ipAddress, port: port, timeout: timeout)
             }
         }
 
@@ -123,7 +109,39 @@ private func scanPorts(ipAddress: String, ports: [Int], timeout: TimeInterval) a
             if let port {
                 openPorts.append(port)
             }
+
+            if let nextPort = iterator.next() {
+                group.addTask {
+                    await scanPort(ipAddress: ipAddress, port: nextPort, timeout: timeout)
+                }
+            }
         }
+
         return openPorts
     }
+}
+
+private func scanPort(ipAddress: String, port: Int, timeout: TimeInterval) async -> OpenPort? {
+    guard await TCPProbe.isOpen(ipAddress: ipAddress, port: port, timeout: timeout) else {
+        return nil
+    }
+
+    let definition = PortCatalog.definition(for: port)
+    var openPort = OpenPort(
+        port: definition.port,
+        name: definition.name,
+        category: definition.category
+    )
+
+    if PortCatalog.isHTTP(port) || PortCatalog.isHTTPS(port) {
+        let fingerprint = await HTTPFingerprintProbe.fingerprint(
+            ipAddress: ipAddress,
+            port: port,
+            timeout: max(timeout, 1.2)
+        )
+        openPort.server = fingerprint?.server
+        openPort.title = fingerprint?.title
+    }
+
+    return openPort
 }
