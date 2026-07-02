@@ -441,7 +441,7 @@ final class AppModel: ObservableObject {
     }
 
     func bestWebURL(for host: HostDiscovery) -> URL? {
-        let preferredPorts = [443, 8443, 9443, 80, 8080, 8000, 8888]
+        let preferredPorts = [443, 8443, 9443, 80, 8080, 3000, 8000, 8888]
         let openPortSet = Set(host.openPorts.map(\.port))
         guard let port = preferredPorts.first(where: { openPortSet.contains($0) }) else {
             return nil

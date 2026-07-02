@@ -1048,6 +1048,10 @@ private struct NetworkMapLayout {
 private extension HostDiscovery {
     var mapSymbol: String {
         let ports = Set(openPorts.map(\.port))
+        if systemType.localizedCaseInsensitiveContains("airzone") { return "thermometer" }
+        if systemType.localizedCaseInsensitiveContains("fronius") || systemType.localizedCaseInsensitiveContains("victron") {
+            return "sun.max"
+        }
         if ports.contains(8090) { return "sun.max" }
         if ports.contains(502) { return "cpu" }
         if ports.contains(9100) { return "printer" }
@@ -1055,18 +1059,22 @@ private extension HostDiscovery {
         if ports.contains(3389) || ports.contains(445) { return "desktopcomputer" }
         if ports.contains(1883) { return "sensor" }
         if ports.contains(22) { return "terminal" }
-        if ports.contains(80) || ports.contains(443) || ports.contains(8080) || ports.contains(8443) { return "globe" }
+        if ports.contains(80) || ports.contains(443) || ports.contains(3000) || ports.contains(8080) || ports.contains(8443) { return "globe" }
         return "network"
     }
 
     var mapColor: Color {
         let ports = Set(openPorts.map(\.port))
+        if systemType.localizedCaseInsensitiveContains("airzone") { return .cyan }
+        if systemType.localizedCaseInsensitiveContains("fronius") || systemType.localizedCaseInsensitiveContains("victron") {
+            return Color(red: 0.05, green: 0.48, blue: 0.36)
+        }
         if ports.contains(8090) { return Color(red: 0.05, green: 0.48, blue: 0.36) }
         if ports.contains(502) { return .orange }
         if ports.contains(9100) { return .purple }
         if ports.contains(554) { return .pink }
         if ports.contains(22) { return .green }
-        if ports.contains(80) || ports.contains(443) { return .blue }
+        if ports.contains(80) || ports.contains(443) || ports.contains(3000) { return .blue }
         return .secondary
     }
 }

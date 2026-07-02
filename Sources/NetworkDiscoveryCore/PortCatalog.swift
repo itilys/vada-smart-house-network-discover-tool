@@ -16,6 +16,7 @@ public enum PortCatalog {
         PortDefinition(port: 445, name: "SMB", category: .fileSharing),
         PortDefinition(port: 554, name: "RTSP", category: .media),
         PortDefinition(port: 1883, name: "MQTT", category: .messaging),
+        PortDefinition(port: 3000, name: "Airzone HTTP", category: .web),
         PortDefinition(port: 3306, name: "MySQL", category: .database),
         PortDefinition(port: 5432, name: "PostgreSQL", category: .database),
         PortDefinition(port: 5900, name: "VNC", category: .remoteAccess),
@@ -29,7 +30,7 @@ public enum PortCatalog {
     }
 
     public static func isHTTP(_ port: Int) -> Bool {
-        [80, 8080, 8090, 8000, 8888].contains(port)
+        [80, 3000, 8080, 8090, 8000, 8888].contains(port)
     }
 
     public static func isHTTPS(_ port: Int) -> Bool {
