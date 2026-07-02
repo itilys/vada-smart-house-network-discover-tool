@@ -71,7 +71,7 @@ private enum VaDaAboutPanel {
 
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "VaDa Network Discover",
-            .applicationVersion: "0.1.0",
+            .applicationVersion: "0.1.1",
             .applicationIcon: icon as Any,
             .credits: credits
         ])
