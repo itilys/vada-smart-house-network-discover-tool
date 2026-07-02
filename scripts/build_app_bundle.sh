@@ -63,9 +63,9 @@ cat > "$TMP_APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.1.0</string>
+  <string>0.1.1</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>2</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key>
@@ -84,15 +84,15 @@ printf "APPL????" > "$TMP_APP/Contents/PkgInfo"
 
 clean_bundle_metadata "$TMP_APP"
 codesign --force --deep --sign - "$TMP_APP" >/dev/null 2>&1 || true
+clean_bundle_metadata "$TMP_APP"
 
 rm -rf "$DIST_APP" "$DIST_ZIP" "$DIST_DIR/Network Discover.app" "$DIST_DIR/NetworkDiscover-macOS.zip"
 mkdir -p "$DIST_DIR"
 ditto --norsrc "$TMP_APP" "$DIST_APP"
 clean_bundle_metadata "$DIST_APP"
 codesign --force --deep --sign - "$DIST_APP" >/dev/null 2>&1 || true
-ditto -c -k --norsrc --keepParent "$DIST_APP" "$DIST_ZIP"
 clean_bundle_metadata "$DIST_APP"
-codesign --force --deep --sign - "$DIST_APP" >/dev/null 2>&1 || true
+ditto -c -k --norsrc --keepParent "$DIST_APP" "$DIST_ZIP"
 
 echo "$DIST_APP"
 echo "$DIST_ZIP"

@@ -36,7 +36,8 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.1.0 |
+| Versión publicada | 0.1.1 |
+| Última actualización | 2026-07-02 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
 ## Funcionalidad
@@ -44,11 +45,11 @@ flowchart LR
 - Descubrimiento IPv4 por segmento CIDR, rango o comodín.
 - Ping ICMP opcional en macOS.
 - Escaneo TCP con timeout y concurrencia limitada.
-- Catálogo de puertos comunes: SSH, HTTP, HTTPS, Modbus TCP, SMB, RTSP, MQTT, RDP, VNC, impresoras y bases de datos.
+- Catálogo de puertos comunes: SSH, HTTP, HTTPS, Modbus TCP, SMB, RTSP, MQTT, Airzone HTTP, RDP, VNC, impresoras y bases de datos.
 - DNS inverso cuando está disponible.
 - MAC best-effort por ARP en redes locales.
 - Huellas HTTP simples mediante cabecera `Server` y título HTML.
-- Clasificación heurística del tipo de equipo.
+- Clasificación heurística del tipo de equipo, con señales específicas para Fronius, Victron y Airzone cuando aparecen en huellas HTTP.
 - Detección específica de VaDa SolarBrain / VaDa SolarGenius por el puerto 8090.
 - Listado filtrable por texto, tipo y puerto, con ordenación.
 - Mapa visual seleccionable con router marcado, zoom, pan y export Mermaid.

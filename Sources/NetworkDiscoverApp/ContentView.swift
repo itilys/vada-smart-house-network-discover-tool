@@ -257,7 +257,7 @@ private struct VaDaAboutView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 8) {
-                Label("Detecta HTTP, HTTPS, SSH, Modbus, MQTT y VaDa Solar en el puerto 8090.", systemImage: "network")
+                Label("Detecta HTTP, HTTPS, SSH, Modbus, MQTT, Airzone y equipos solares.", systemImage: "network")
                 Label("Permite guardar, refrescar y exportar mapas de red.", systemImage: "map")
                 Label("VaDa SmartHouse - https://vadasmarthouse.com/", systemImage: "globe")
             }
@@ -300,7 +300,7 @@ private struct SummaryStrip: View {
     var body: some View {
         HStack(spacing: 10) {
             SummaryMetric(title: "Equipos", value: "\(hosts.count)", symbol: "desktopcomputer")
-            SummaryMetric(title: "HTTP", value: "\(countPorts([80, 443, 8080, 8443]))", symbol: "globe")
+            SummaryMetric(title: "HTTP", value: "\(countPorts([80, 443, 3000, 8080, 8443]))", symbol: "globe")
             SummaryMetric(title: "VaDa", value: "\(countPorts([8090]))", symbol: "sun.max")
             SummaryMetric(title: "Modbus", value: "\(countPorts([502]))", symbol: "cpu")
         }
@@ -1676,6 +1676,10 @@ private struct SelectedHostDetail: View {
 private extension HostDiscovery {
     var symbolName: String {
         let ports = Set(openPorts.map(\.port))
+        if systemType.localizedCaseInsensitiveContains("airzone") { return "thermometer" }
+        if systemType.localizedCaseInsensitiveContains("fronius") || systemType.localizedCaseInsensitiveContains("victron") {
+            return "sun.max"
+        }
         if ports.contains(8090) { return "sun.max" }
         if ports.contains(502) { return "cpu" }
         if ports.contains(9100) { return "printer" }
@@ -1683,18 +1687,22 @@ private extension HostDiscovery {
         if ports.contains(3389) || ports.contains(445) { return "desktopcomputer" }
         if ports.contains(1883) { return "sensor" }
         if ports.contains(22) { return "terminal" }
-        if ports.contains(80) || ports.contains(443) || ports.contains(8080) || ports.contains(8443) { return "globe" }
+        if ports.contains(80) || ports.contains(443) || ports.contains(3000) || ports.contains(8080) || ports.contains(8443) { return "globe" }
         return "network"
     }
 
     var tintColor: Color {
         let ports = Set(openPorts.map(\.port))
+        if systemType.localizedCaseInsensitiveContains("airzone") { return .cyan }
+        if systemType.localizedCaseInsensitiveContains("fronius") || systemType.localizedCaseInsensitiveContains("victron") {
+            return Color(red: 0.05, green: 0.48, blue: 0.36)
+        }
         if ports.contains(8090) { return Color(red: 0.05, green: 0.48, blue: 0.36) }
         if ports.contains(502) { return .orange }
         if ports.contains(9100) { return .purple }
         if ports.contains(554) { return .pink }
         if ports.contains(22) { return .green }
-        if ports.contains(80) || ports.contains(443) { return .blue }
+        if ports.contains(80) || ports.contains(443) || ports.contains(3000) { return .blue }
         return .secondary
     }
 }
@@ -1727,7 +1735,7 @@ private extension ServiceCategory {
 
 private extension OpenPort {
     var badgeColor: Color {
-        port == 8090 ? Color(red: 0.05, green: 0.48, blue: 0.36) : category.badgeColor
+        port == 8090 ? Color(red: 0.05, green: 0.48, blue: 0.36) : (port == 3000 ? .cyan : category.badgeColor)
     }
 }
 

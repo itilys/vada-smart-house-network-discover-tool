@@ -109,6 +109,47 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertEqual(host.systemType, "VaDa SolarBrain / SolarGenius")
     }
 
+    func testSolarBrandFingerprintsOutrankGenericModbusClassification() {
+        let modbus = PortCatalog.definition(for: 502)
+        let http = PortCatalog.definition(for: 80)
+
+        let froniusType = SystemClassifier.classify(
+            hostname: nil,
+            openPorts: [
+                OpenPort(port: http.port, name: http.name, category: http.category, title: "webserver - Fronius"),
+                OpenPort(port: modbus.port, name: modbus.name, category: modbus.category)
+            ],
+            pingResponded: false
+        )
+        let victronType = SystemClassifier.classify(
+            hostname: nil,
+            openPorts: [
+                OpenPort(port: http.port, name: http.name, category: http.category, server: "nginx - Victron GUIv2"),
+                OpenPort(port: modbus.port, name: modbus.name, category: modbus.category)
+            ],
+            pingResponded: false
+        )
+
+        XCTAssertEqual(froniusType, "Fronius / solar")
+        XCTAssertEqual(victronType, "Victron / solar")
+    }
+
+    func testAirzonePortIsCataloguedAsHTTPAndClassifiedFromFingerprint() {
+        let definition = PortCatalog.definition(for: 3000)
+        let systemType = SystemClassifier.classify(
+            hostname: nil,
+            openPorts: [
+                OpenPort(port: definition.port, name: definition.name, category: definition.category, server: "Airzone-Webserver")
+            ],
+            pingResponded: false
+        )
+
+        XCTAssertTrue(PortCatalog.defaultPorts.contains { $0.port == 3000 })
+        XCTAssertTrue(PortCatalog.isHTTP(3000))
+        XCTAssertEqual(definition.name, "Airzone HTTP")
+        XCTAssertEqual(systemType, "Airzone / climatización")
+    }
+
     func testMermaidMapUsesReadableLineBreaks() {
         let host = HostDiscovery(
             ipAddress: "127.0.0.1",

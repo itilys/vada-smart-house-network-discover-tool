@@ -11,6 +11,15 @@ enum SystemClassifier {
         if ports.contains(8090) || evidence.contains("solarbrain") || evidence.contains("solargenius") || evidence.contains("vada") {
             return "VaDa SolarBrain / SolarGenius"
         }
+        if ports.contains(3000), evidence.contains("airzone") {
+            return "Airzone / climatización"
+        }
+        if evidence.contains("fronius") {
+            return "Fronius / solar"
+        }
+        if evidence.contains("victron") {
+            return "Victron / solar"
+        }
         if ports.contains(502) {
             return "PLC / equipo industrial"
         }
@@ -38,13 +47,13 @@ enum SystemClassifier {
         if hasAny(ports, [3306, 5432]) {
             return "Servidor de base de datos"
         }
-        if ports.contains(22), hasAny(ports, [80, 443, 8080, 8443]) {
+        if ports.contains(22), hasAny(ports, [80, 443, 3000, 8080, 8443]) {
             return "Appliance Linux / red"
         }
         if ports.contains(22) {
             return "Linux/Unix o equipo administrable"
         }
-        if hasAny(ports, [80, 443, 8080, 8443]) {
+        if hasAny(ports, [80, 443, 3000, 8080, 8443]) {
             return "Servicio web / dispositivo"
         }
         if pingResponded {
