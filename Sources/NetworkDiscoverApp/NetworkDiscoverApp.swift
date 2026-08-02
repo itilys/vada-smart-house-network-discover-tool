@@ -8,12 +8,14 @@ import AppKit
 struct NetworkDiscoverApp: App {
 #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var updateManager = UpdateManager()
 #endif
 
     var body: some Scene {
         WindowGroup("VaDa Network Discover") {
             ContentView()
 #if os(macOS)
+                .environmentObject(updateManager)
                 .frame(minWidth: 1320, minHeight: 760)
 #endif
         }
@@ -25,6 +27,13 @@ struct NetworkDiscoverApp: App {
                 Button("Acerca de VaDa Network Discover") {
                     VaDaAboutPanel.show()
                 }
+                Divider()
+                Button(updateManager.isChecking ? "Buscando actualizaciones…" : "Buscar actualizaciones…") {
+                    Task {
+                        await updateManager.checkNow()
+                    }
+                }
+                .disabled(updateManager.isChecking)
             }
         }
 #endif
@@ -71,7 +80,9 @@ private enum VaDaAboutPanel {
 
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "VaDa Network Discover",
-            .applicationVersion: "0.1.1",
+            .applicationVersion: Bundle.main.object(
+                forInfoDictionaryKey: "CFBundleShortVersionString"
+            ) as? String ?? "Desarrollo",
             .applicationIcon: icon as Any,
             .credits: credits
         ])

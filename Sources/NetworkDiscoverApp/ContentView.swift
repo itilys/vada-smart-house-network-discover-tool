@@ -8,6 +8,9 @@ import AppKit
 
 struct ContentView: View {
     @StateObject private var model = AppModel()
+#if os(macOS)
+    @EnvironmentObject private var updateManager: UpdateManager
+#endif
 #if os(iOS)
     @State private var isAboutPresented = false
 #endif
@@ -45,12 +48,50 @@ struct ContentView: View {
         } message: {
             Text("El escaneo actual tiene cambios sin guardar. Si continúas, se perderán de la vista actual.")
         }
+#if os(macOS)
+        .task {
+            await updateManager.checkIfNeeded()
+        }
+        .alert(item: $updateManager.notice) { notice in
+            updateAlert(for: notice)
+        }
+#endif
 #if os(iOS)
         .sheet(isPresented: $isAboutPresented) {
             VaDaAboutView()
         }
 #endif
     }
+
+#if os(macOS)
+    private func updateAlert(for notice: UpdateNotice) -> Alert {
+        switch notice {
+        case .available(let release, let currentVersion):
+            let releaseName = release.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayVersion = releaseName.flatMap { $0.isEmpty ? nil : $0 } ?? release.tagName
+            return Alert(
+                title: Text("Nueva versión disponible"),
+                message: Text("\(displayVersion) está disponible. Tienes instalada la versión \(currentVersion)."),
+                primaryButton: .default(Text("Ver en GitHub")) {
+                    NSWorkspace.shared.open(release.pageURL)
+                },
+                secondaryButton: .cancel(Text("Más tarde"))
+            )
+        case .upToDate(let currentVersion):
+            return Alert(
+                title: Text("VaDa Network Discover está actualizado"),
+                message: Text("Tienes instalada la última versión disponible (\(currentVersion))."),
+                dismissButton: .default(Text("OK"))
+            )
+        case .failed(let message):
+            return Alert(
+                title: Text("No se pudieron buscar actualizaciones"),
+                message: Text(message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+#endif
 
     @ViewBuilder
     private var sidebar: some View {
