@@ -36,8 +36,8 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.1.1 |
-| Última actualización | 2026-07-02 |
+| Versión publicada | 0.1.2 |
+| Última actualización | 2026-08-02 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
 ## Funcionalidad
@@ -51,6 +51,7 @@ flowchart LR
 - Huellas HTTP simples mediante cabecera `Server` y título HTML.
 - Clasificación heurística del tipo de equipo, con señales específicas para Fronius, Victron y Airzone cuando aparecen en huellas HTTP.
 - Detección específica de VaDa SolarBrain / VaDa SolarGenius por el puerto 8090.
+- Comprobación semanal de nuevas versiones publicadas en GitHub, con consulta manual desde el menú de la app.
 - Listado filtrable por texto, tipo y puerto, con ordenación.
 - Mapa visual seleccionable con router marcado, zoom, pan y export Mermaid.
 - Exportación del mapa a PNG con marca VaDa SmartHouse.
@@ -105,6 +106,7 @@ flowchart TB
 - El escaneo aplica límites de tamaño de red, timeouts y concurrencia acotada.
 - La huella HTTPS acepta certificados autofirmados para poder identificar equipos locales; no se usa para validar identidad ni enviar credenciales.
 - No hay backend, telemetría ni envío de resultados a terceros.
+- La comprobación de actualizaciones consulta únicamente la última release pública en GitHub. No usa credenciales ni envía resultados del escaneo; solo guarda localmente la fecha del último intento.
 
 Para más detalle, revisa [SECURITY.md](SECURITY.md) y [docs/security-best-practices.md](docs/security-best-practices.md).
 

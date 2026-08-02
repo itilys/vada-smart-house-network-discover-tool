@@ -9,7 +9,8 @@ No está diseñado como herramienta ofensiva, no intenta explotar servicios y no
 ## Modelo de seguridad
 
 - El descubrimiento se ejecuta localmente desde la máquina del usuario.
-- No hay backend, telemetría ni envío de resultados a terceros.
+- No hay backend, telemetría ni envío de resultados de red a terceros.
+- En macOS, la comprobación automática consulta como máximo una vez por semana la última release pública del proyecto en GitHub; el usuario puede iniciar comprobaciones manuales. La petición no incluye credenciales ni datos del escaneo; se persiste únicamente la fecha local del último intento.
 - Los escaneos tienen timeouts, concurrencia limitada y un máximo de hosts por configuración.
 - La huella HTTPS acepta certificados autofirmados porque muchos equipos locales usan certificados propios; no debe interpretarse como validación de identidad remota.
 - La app no solicita credenciales, no intenta autenticarse en servicios detectados y no explota vulnerabilidades.

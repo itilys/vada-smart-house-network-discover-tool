@@ -1,13 +1,14 @@
-# VaDa Network Discover 0.1.1
+# VaDa Network Discover 0.1.2
 
-Release menor centrada en mejorar la identificación de equipos solares, climatización y PLC/Modbus.
+Release menor que añade comprobación segura de nuevas versiones desde la app macOS.
 
 Incluye:
 
-- clasificación específica para Fronius y Victron mediante huellas HTTP;
-- detección de Airzone en el puerto 3000;
-- escaneo TCP por host más estable para reducir falsos negativos en PLC/Modbus;
-- iconos, colores, contador HTTP y apertura web actualizados para las nuevas señales;
-- documentación y pruebas actualizadas.
+- comprobación automática semanal de la última release pública en GitHub;
+- opción manual `Buscar actualizaciones…` en el menú de la aplicación;
+- aviso con enlace a GitHub cuando existe una versión posterior;
+- comparación numérica de versiones;
+- funcionamiento sin credenciales, descarga automática ni envío de datos del escaneo;
+- documentación de privacidad y pruebas actualizadas.
 
 La build macOS está firmada ad-hoc y no notarizada por Apple.

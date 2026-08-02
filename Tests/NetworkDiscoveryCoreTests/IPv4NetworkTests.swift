@@ -29,6 +29,17 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertEqual(try PortCatalog.parsePorts("22,80,80,500-502"), [22, 80, 500, 501, 502])
     }
 
+    func testSemanticVersionParsesTagsAndComparesNumerically() throws {
+        let current = try XCTUnwrap(SemanticVersion("0.1.9"))
+        let update = try XCTUnwrap(SemanticVersion("v0.1.10"))
+        let majorUpdate = try XCTUnwrap(SemanticVersion("1.0"))
+
+        XCTAssertLessThan(current, update)
+        XCTAssertLessThan(update, majorUpdate)
+        XCTAssertEqual(SemanticVersion("V1.2.3"), SemanticVersion("1.2.3"))
+        XCTAssertNil(SemanticVersion("release-latest"))
+    }
+
     func testIPAvailabilityReportBuildsFreeRanges() throws {
         let report = try IPAvailabilityReport.build(
             segment: "192.168.1.0/29",
