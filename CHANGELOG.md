@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 - 2026-08-02
+
+- Añade comprobación automática semanal de nuevas versiones publicadas en GitHub.
+- Añade la opción manual `Buscar actualizaciones…` al menú de la app macOS.
+- Compara versiones numéricamente y muestra un enlace a la release cuando existe una actualización.
+- Mantiene la comprobación sin credenciales, descargas automáticas ni envío de datos del escaneo.
+- Lee la versión instalada desde el bundle para mantener sincronizado el panel Acerca de.
+
 ## 0.1.1 - 2026-07-02
 
 - Añade clasificación específica para equipos Fronius y Victron a partir de huellas HTTP.
