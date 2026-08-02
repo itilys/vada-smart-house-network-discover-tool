@@ -113,8 +113,9 @@ docs/security-guidance
 fix/port-parser-range
 ```
 
-Do not reuse an old branch for a new scope. Delete merged feature branches from
-the remote unless the maintainer asks to keep one for traceability.
+Do not reuse an old branch for a new scope. Keep merged branches on the remote
+for auditability and traceability. Do not delete a merged branch unless the
+maintainer explicitly requests it.
 
 ## Pull Requests
 
@@ -135,6 +136,7 @@ Merge policy:
 
 - use the repository owner's preferred merge method;
 - keep PRs reviewable and easy to revert;
+- retain merged remote branches for auditability and traceability;
 - do not rebase or force-push after review has started unless needed and noted.
 
 ## Validation Gate
