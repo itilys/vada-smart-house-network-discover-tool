@@ -36,8 +36,8 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.1.2 |
-| Última actualización | 2026-08-02 |
+| Versión publicada | 0.1.3 |
+| Última actualización | 2026-08-03 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
 ## Funcionalidad
@@ -53,7 +53,7 @@ flowchart LR
 - Detección específica de VaDa SolarBrain / VaDa SolarGenius por el puerto 8090.
 - Comprobación semanal de nuevas versiones publicadas en GitHub, con consulta manual desde el menú de la app.
 - Listado filtrable por texto, tipo y puerto, con ordenación.
-- Mapa visual seleccionable con router marcado, zoom, pan y export Mermaid.
+- Mapa visual organizable por plano, subred, asignación IP, sección o tipo de equipo, con router marcado, zoom, pan y export Mermaid.
 - Exportación del mapa a PNG con marca VaDa SmartHouse.
 - Guardado/carga de escaneos en JSON.
 - Refresco de escaneo conservando anotaciones, equipos estáticos y reservas DHCP.
@@ -84,6 +84,7 @@ sequenceDiagram
 | Doble click en equipo | Lista o mapa | Abre el mejor HTTP/HTTPS detectado, si existe. |
 | `Marcar router` | Detalle o menu contextual | Usa el equipo como nodo principal del mapa. |
 | `Salida Internet` | Detalle o menu contextual | Marca el gateway o salida principal. |
+| `Plano / Subred / IP / Sección / Tipo` | Selector del mapa | Cambia la jerarquía visual; `Tipo` reutiliza las categorías del filtro de equipos. |
 | `Rangos libres` | Toolbar del mapa | Calcula direcciones libres y pools DHCP anotados. |
 | `Exportar PNG` | Toolbar del mapa | Genera una imagen del mapa con marca VaDa SmartHouse. |
 | `Copiar Mermaid` | Toolbar del mapa | Copia un diagrama Mermaid editable. |

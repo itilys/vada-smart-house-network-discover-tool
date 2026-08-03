@@ -402,17 +402,7 @@ final class AppModel: ObservableObject {
     }
 
     private func mapGroupLabel(for host: HostDiscovery) -> String {
-        let annotation = annotation(for: host)
-        switch mapOrganization {
-        case .flat:
-            return "Equipos"
-        case .subnet:
-            return host.subnetLabel
-        case .addressAssignment:
-            return annotation.addressAssignment.label
-        case .section:
-            return annotation.section.isEmpty ? "Sin sección" : annotation.section
-        }
+        mapOrganization.groupLabel(for: host, annotation: annotation(for: host))
     }
 
     @discardableResult
@@ -971,12 +961,6 @@ private extension HostAnnotation {
 private extension HostDiscovery {
     var normalizedMACAddress: String? {
         macAddress?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
-
-    var subnetLabel: String {
-        let parts = ipAddress.split(separator: ".")
-        guard parts.count == 4 else { return "Otra subred" }
-        return "\(parts[0]).\(parts[1]).\(parts[2]).0/24"
     }
 }
 
