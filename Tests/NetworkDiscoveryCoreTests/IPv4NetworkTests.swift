@@ -240,6 +240,34 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertTrue(map.contains("camera.local<br/>Cámara IP / vídeo<br/>IP estática<br/>Planta 1"))
     }
 
+    func testMermaidMapCanGroupBySystemType() {
+        let camera = HostDiscovery(
+            ipAddress: "192.168.1.20",
+            hostname: "camera.local",
+            pingResponded: true,
+            systemType: "Cámara IP / vídeo",
+            openPorts: []
+        )
+        let controller = HostDiscovery(
+            ipAddress: "192.168.1.30",
+            hostname: "solar-controller.local",
+            pingResponded: true,
+            systemType: "Fronius / solar",
+            openPorts: []
+        )
+
+        let map = NetworkMapRenderer.mermaid(
+            segment: "192.168.1.0/24",
+            hosts: [camera, controller],
+            organization: .systemType
+        )
+
+        XCTAssertTrue(map.contains("network --> group_Cámara_IP___vídeo[\"Cámara IP / vídeo\"]"))
+        XCTAssertTrue(map.contains("group_Cámara_IP___vídeo --> host_192_168_1_20"))
+        XCTAssertTrue(map.contains("network --> group_Fronius___solar[\"Fronius / solar\"]"))
+        XCTAssertTrue(map.contains("group_Fronius___solar --> host_192_168_1_30"))
+    }
+
     func testMermaidMapCanUseMultipleRoutersAndSubnetGroups() {
         let externalRouter = HostDiscovery(
             ipAddress: "192.168.0.1",
@@ -320,7 +348,7 @@ final class IPv4NetworkTests: XCTestCase {
                     lastSeen: Date(timeIntervalSince1970: 42)
                 )
             ],
-            mapOrganization: .section
+            mapOrganization: .systemType
         )
 
         let data = try JSONEncoder().encode(document)
@@ -338,7 +366,8 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertEqual(decoded.annotations["10.0.0.1"]?.section, "Rack comunicaciones")
         XCTAssertEqual(decoded.annotations["10.0.0.1"]?.isMissing, true)
         XCTAssertEqual(decoded.annotations["10.0.0.1"]?.lastSeen, Date(timeIntervalSince1970: 42))
-        XCTAssertEqual(decoded.mapOrganization, .section)
+        XCTAssertEqual(decoded.mapOrganization, .systemType)
+        XCTAssertEqual(decoded.schemaVersion, 6)
     }
 
     func testSavedScanDecodesLegacyDocumentWithoutRefreshMetadata() throws {

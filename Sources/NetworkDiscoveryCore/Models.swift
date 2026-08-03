@@ -81,6 +81,14 @@ public struct HostDiscovery: Identifiable, Hashable, Codable, Sendable {
     }
 }
 
+public extension HostDiscovery {
+    var subnetLabel: String {
+        let parts = ipAddress.split(separator: ".")
+        guard parts.count == 4 else { return "Otra subred" }
+        return "\(parts[0]).\(parts[1]).\(parts[2]).0/24"
+    }
+}
+
 public struct ScanConfiguration: Hashable, Codable, Sendable {
     public var segment: String
     public var ports: [Int]
@@ -180,6 +188,7 @@ public enum NetworkMapOrganization: String, Codable, CaseIterable, Sendable {
     case subnet
     case addressAssignment
     case section
+    case systemType
 
     public var label: String {
         switch self {
@@ -187,6 +196,22 @@ public enum NetworkMapOrganization: String, Codable, CaseIterable, Sendable {
         case .subnet: return "Subred"
         case .addressAssignment: return "IP"
         case .section: return "Sección"
+        case .systemType: return "Tipo"
+        }
+    }
+
+    public func groupLabel(for host: HostDiscovery, annotation: HostAnnotation = HostAnnotation()) -> String {
+        switch self {
+        case .flat:
+            return "Equipos"
+        case .subnet:
+            return host.subnetLabel
+        case .addressAssignment:
+            return annotation.addressAssignment.label
+        case .section:
+            return annotation.section.isEmpty ? "Sin sección" : annotation.section
+        case .systemType:
+            return host.systemType
         }
     }
 }
@@ -204,7 +229,7 @@ public struct SavedScan: Hashable, Codable, Sendable {
     public var mapOrganization: NetworkMapOrganization
 
     public init(
-        schemaVersion: Int = 5,
+        schemaVersion: Int = 6,
         savedAt: Date = Date(),
         configuration: ScanConfiguration,
         hosts: [HostDiscovery],

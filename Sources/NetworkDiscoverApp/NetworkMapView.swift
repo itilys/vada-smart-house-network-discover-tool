@@ -994,17 +994,10 @@ private struct NetworkMapLayout {
         annotations: [HostDiscovery.ID: HostAnnotation],
         organization: NetworkMapOrganization
     ) -> String {
-        let annotation = annotations[host.id] ?? HostAnnotation()
-        switch organization {
-        case .flat:
-            return "Equipos"
-        case .subnet:
-            return subnetLabel(for: host.ipAddress)
-        case .addressAssignment:
-            return annotation.addressAssignment.label
-        case .section:
-            return annotation.section.isEmpty ? "Sin sección" : annotation.section
-        }
+        organization.groupLabel(
+            for: host,
+            annotation: annotations[host.id] ?? HostAnnotation()
+        )
     }
 
     private static func groupID(for label: String, parentRouterID: HostDiscovery.ID?) -> String {

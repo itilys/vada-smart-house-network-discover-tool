@@ -1,14 +1,14 @@
-# VaDa Network Discover 0.1.2
+# VaDa Network Discover 0.1.3
 
-Release menor que añade comprobación segura de nuevas versiones desde la app macOS.
+Nueva versión que amplía las opciones de visualización del mapa de red.
 
 Incluye:
 
-- comprobación automática semanal de la última release pública en GitHub;
-- opción manual `Buscar actualizaciones…` en el menú de la aplicación;
-- aviso con enlace a GitHub cuando existe una versión posterior;
-- comparación numérica de versiones;
-- funcionamiento sin credenciales, descarga automática ni envío de datos del escaneo;
-- documentación de privacidad y pruebas actualizadas.
+- nueva organización `Tipo` en el selector del mapa;
+- agrupación mediante las mismas categorías usadas en el filtro de equipos;
+- compatibilidad con categorías como cámara, PLC, Fronius, Victron, Airzone, VaDa y servicios de red;
+- aplicación de la jerarquía al mapa interactivo y a las exportaciones Mermaid y PNG;
+- lectura compatible con escaneos guardados por versiones anteriores;
+- documentación y pruebas actualizadas.
 
 La build macOS está firmada ad-hoc y no notarizada por Apple.
