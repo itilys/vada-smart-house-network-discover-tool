@@ -99,7 +99,7 @@ public enum NetworkMapRenderer {
             isRouter ? "Router" : nil,
             isDefaultInternet ? "Salida Internet" : nil,
             host.systemType,
-            annotation?.isMissing == true ? "No visto" : nil,
+            annotation?.isMissing == true ? "No detectado" : nil,
             annotation?.addressAssignment == .unknown ? nil : annotation?.addressAssignment.label,
             annotation?.section.isEmpty == false ? annotation?.section : nil,
             services.isEmpty ? nil : services

@@ -48,13 +48,13 @@ struct ContentView: View {
         } message: {
             Text("El escaneo actual tiene cambios sin guardar. Si continúas, se perderán de la vista actual.")
         }
-        .alert("Eliminar equipos no vistos", isPresented: $model.isRemoveMissingConfirmationPresented) {
+        .alert("Eliminar equipos no detectados", isPresented: $model.isRemoveMissingConfirmationPresented) {
             Button("Eliminar", role: .destructive) {
                 model.removeMissingHosts()
             }
             Button("Cancelar", role: .cancel) {}
         } message: {
-            Text("Se eliminarán del inventario los equipos que no respondieron en el último refresco. Esta acción no afecta a ningún equipo de la red.")
+            Text("Se eliminarán del inventario los equipos que no respondieron en el último refresco. Esta acción solo modifica el archivo local y no afecta a ningún equipo de la red.")
         }
 #if os(macOS)
         .task {
@@ -401,11 +401,18 @@ private struct HostListView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if model.visibleHosts.isEmpty {
-                ContentUnavailableView(
-                    "Sin coincidencias",
-                    systemImage: "line.3.horizontal.decrease.circle",
-                    description: Text("Ajusta el texto, tipo, puerto o estado del filtro.")
-                )
+                ContentUnavailableView {
+                    Label("Sin coincidencias", systemImage: "line.3.horizontal.decrease.circle")
+                } description: {
+                    Text("No hay equipos que coincidan con los filtros actuales.")
+                } actions: {
+                    Button {
+                        model.resetHostFilters()
+                    } label: {
+                        Label("Mostrar todos", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.bordered)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
@@ -506,21 +513,15 @@ private struct HostListView: View {
                 Text("Equipos")
                     .font(.title2.weight(.semibold))
                 Spacer()
-                if model.isScanning {
+                if model.isScanning, !model.isRefreshing {
                     ProgressView()
                         .controlSize(.small)
-                    Text(model.isRefreshing ? "Refresco" : model.progressText)
+                    Text(model.progressText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
-                    if model.isRefreshing {
-                        Text(model.progressText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
                 } else if !model.hosts.isEmpty {
-                    Text("\(model.visibleHosts.count)/\(model.hosts.count)")
+                    Text("\(model.visibleHosts.count) de \(model.hosts.count)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -531,18 +532,21 @@ private struct HostListView: View {
                 TextField("Filtrar por nombre, IP, tipo o puerto", text: $model.searchText)
                     .textFieldStyle(.roundedBorder)
 
-                if model.refreshSummary != nil {
+                if model.isRefreshing {
+                    RefreshProgressView(progress: model.progress)
+                } else if model.refreshSummary != nil {
                     RefreshComparisonSummaryView(model: model)
                 }
 
                 HStack(spacing: 8) {
                     Picker("Tipo", selection: $model.selectedTypeFilter) {
                         ForEach(model.typeFilters, id: \.self) { type in
-                            Text(type).tag(type)
+                            Text("Tipo: \(type)").tag(type)
                         }
                     }
                     .labelsHidden()
                     .frame(maxWidth: .infinity)
+                    .help("Filtrar por tipo de equipo")
 
                     Picker(
                         "Puerto",
@@ -551,33 +555,25 @@ private struct HostListView: View {
                             set: { model.selectedPortFilter = $0 == -1 ? nil : $0 }
                         )
                     ) {
-                        Text("Todos").tag(-1)
+                        Text("Puerto: Todos").tag(-1)
                         ForEach(model.portFilters, id: \.self) { port in
-                            Text("\(port)").tag(port)
+                            Text("Puerto: \(port)").tag(port)
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 105)
+                    .frame(width: 150)
+                    .help("Filtrar por puerto abierto")
                 }
 
                 HStack(spacing: 8) {
-                    if model.refreshComparison != nil {
-                        Picker("Estado", selection: $model.selectedRefreshFilter) {
-                            ForEach(HostRefreshFilter.allCases) { filter in
-                                Text("Estado: \(filter.label)").tag(filter)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(maxWidth: .infinity)
-                        .help("Filtrar por resultado del último refresco")
-                    }
-
                     Picker("Orden", selection: $model.sortOption) {
                         ForEach(HostSortOption.allCases) { option in
-                            Text(option.label).tag(option)
+                            Text("Orden: \(option.label)").tag(option)
                         }
                     }
                     .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                    .help("Ordenar la lista de equipos")
 
                     Button {
                         model.sortAscending.toggle()
@@ -585,6 +581,16 @@ private struct HostListView: View {
                         Image(systemName: model.sortAscending ? "arrow.up" : "arrow.down")
                     }
                     .help(model.sortAscending ? "Orden ascendente" : "Orden descendente")
+
+                    if model.hasActiveHostFilters {
+                        Button {
+                            model.resetHostFilters()
+                        } label: {
+                            Label("Limpiar", systemImage: "xmark.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .help("Quitar todos los filtros")
+                    }
                 }
             }
 
@@ -712,7 +718,7 @@ private struct HostRow: View {
 
     private var metadataText: String {
         [
-            annotation.isMissing ? "No visto en el último refresco" : nil,
+            annotation.isMissing ? "No detectado en el último refresco" : nil,
             refreshStatus == .unchanged ? nil : refreshStatus?.metadataText,
             annotation.addressAssignment == .unknown ? nil : annotation.addressAssignment.label,
             annotation.section.isEmpty ? nil : annotation.section,
@@ -784,113 +790,220 @@ private struct FeedbackBanner: View {
     }
 }
 
+private struct RefreshProgressView: View {
+    let progress: ScanProgress
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+
+                Text("Actualizando la red")
+                    .font(.subheadline.weight(.semibold))
+
+                Spacer(minLength: 8)
+
+                Text(progressDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            ProgressView(value: progress.fraction)
+        }
+        .padding(10)
+        .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Actualizando la red, \(progressDescription)")
+    }
+
+    private var progressDescription: String {
+        guard progress.totalHosts > 0 else { return "Preparando refresco" }
+        return "\(progress.completedHosts) de \(progress.totalHosts) equipos"
+    }
+}
+
 private struct RefreshComparisonSummaryView: View {
     @ObservedObject var model: AppModel
+
+    private let primaryFilters: [HostRefreshFilter] = [.all, .changes, .present, .unchanged]
+    private let changeFilters: [HostRefreshFilter] = [.changes, .new, .updated, .missing]
 
     var body: some View {
         if let summary = model.refreshSummary,
            let comparison = model.refreshComparison {
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Label("Resultado del último refresco", systemImage: "clock.arrow.circlepath")
+                        .font(.caption.weight(.semibold))
+
+                    Spacer(minLength: 8)
+
+                    Text(completedAtText(for: comparison))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
                 HStack(spacing: 4) {
-                    RefreshMetricButton(
+                    RefreshMetric(
                         title: "Nuevos",
                         count: summary.newHosts,
                         symbol: "plus.circle.fill",
-                        color: .green,
-                        filter: .new,
-                        selectedFilter: $model.selectedRefreshFilter
+                        color: .green
                     )
-                    RefreshMetricButton(
-                        title: "Actualizados",
+                    RefreshMetric(
+                        title: "Modificados",
                         count: summary.updatedHosts,
                         symbol: "arrow.triangle.2.circlepath.circle.fill",
-                        color: .blue,
-                        filter: .updated,
-                        selectedFilter: $model.selectedRefreshFilter
+                        color: .blue
                     )
-                    RefreshMetricButton(
+                    RefreshMetric(
                         title: "Sin cambios",
                         count: summary.unchangedHosts,
                         symbol: "checkmark.circle.fill",
-                        color: .gray,
-                        filter: .unchanged,
-                        selectedFilter: $model.selectedRefreshFilter
+                        color: .gray
                     )
-                    RefreshMetricButton(
-                        title: "No vistos",
+                    RefreshMetric(
+                        title: "No detectados",
                         count: summary.missingHosts,
                         symbol: "exclamationmark.triangle.fill",
-                        color: .orange,
-                        filter: .missing,
-                        selectedFilter: $model.selectedRefreshFilter
+                        color: .orange
                     )
                 }
 
-                HStack(spacing: 8) {
-                    Text(comparison.completedAt, format: .dateTime.day().month(.abbreviated).hour().minute())
-                        .font(.caption2)
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Mostrar")
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
 
-                    Spacer(minLength: 0)
-
-                    if summary.changeCount > 0 {
-                        Button {
-                            model.selectedRefreshFilter = .changes
-                        } label: {
-                            Label("Ver cambios", systemImage: "line.3.horizontal.decrease.circle")
+                    Picker("Mostrar", selection: primaryFilterSelection) {
+                        ForEach(primaryFilters) { filter in
+                            Text("\(filter.primaryLabel) \(count(for: filter, summary: summary))")
+                                .tag(filter)
                         }
-                        .buttonStyle(.borderless)
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .help("Elegir qué equipos se muestran en la lista y el mapa")
 
-                    if summary.missingHosts > 0 {
-                        Button {
-                            model.requestRemoveMissingHosts()
-                        } label: {
-                            Image(systemName: "trash")
+                    if isFilteringChanges {
+                        Text("Tipo de cambio")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+
+                        Picker("Tipo de cambio", selection: $model.selectedRefreshFilter) {
+                            ForEach(changeFilters) { filter in
+                                Text("\(filter.changeLabel) \(count(for: filter, summary: summary))")
+                                    .tag(filter)
+                            }
                         }
-                        .buttonStyle(.borderless)
-                        .help("Eliminar equipos no vistos del inventario")
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .help("Filtrar por el cambio detectado en el último refresco")
+                    }
+                }
+
+                if summary.missingHosts > 0 {
+                    HStack {
+                        Spacer(minLength: 0)
+
+                        Menu {
+                            Button(role: .destructive) {
+                                model.requestRemoveMissingHosts()
+                            } label: {
+                                Label(
+                                    "Eliminar \(summary.missingHosts) equipos no detectados…",
+                                    systemImage: "trash"
+                                )
+                            }
+                        } label: {
+                            Label("Acciones", systemImage: "ellipsis.circle")
+                        }
+                        .help("Gestionar los equipos no detectados")
                     }
                 }
             }
-            .padding(8)
+            .padding(10)
             .background(.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
+
+    private var primaryFilterSelection: Binding<HostRefreshFilter> {
+        Binding(
+            get: {
+                switch model.selectedRefreshFilter {
+                case .new, .updated, .missing:
+                    return .changes
+                default:
+                    return model.selectedRefreshFilter
+                }
+            },
+            set: { model.selectedRefreshFilter = $0 }
+        )
+    }
+
+    private var isFilteringChanges: Bool {
+        switch model.selectedRefreshFilter {
+        case .changes, .new, .updated, .missing:
+            return true
+        case .all, .present, .unchanged:
+            return false
+        }
+    }
+
+    private func count(for filter: HostRefreshFilter, summary: RefreshStatusSummary) -> Int {
+        switch filter {
+        case .all:
+            return summary.newHosts + summary.updatedHosts + summary.unchangedHosts + summary.missingHosts
+        case .changes:
+            return summary.changeCount
+        case .present:
+            return summary.newHosts + summary.updatedHosts + summary.unchangedHosts
+        case .new:
+            return summary.newHosts
+        case .updated:
+            return summary.updatedHosts
+        case .unchanged:
+            return summary.unchangedHosts
+        case .missing:
+            return summary.missingHosts
+        }
+    }
+
+    private func completedAtText(for comparison: RefreshComparison) -> String {
+        comparison.completedAt.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .shortened)
+                .locale(Locale(identifier: "es_ES"))
+        )
+    }
 }
 
-private struct RefreshMetricButton: View {
+private struct RefreshMetric: View {
     let title: String
     let count: Int
     let symbol: String
     let color: Color
-    let filter: HostRefreshFilter
-    @Binding var selectedFilter: HostRefreshFilter
 
     var body: some View {
-        Button {
-            selectedFilter = selectedFilter == filter ? .all : filter
-        } label: {
-            VStack(spacing: 3) {
-                Image(systemName: symbol)
-                    .foregroundStyle(color)
-                Text(count, format: .number)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .contentShape(Rectangle())
-            .background(
-                selectedFilter == filter ? color.opacity(0.12) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-            )
+        VStack(spacing: 3) {
+            Image(systemName: symbol)
+                .foregroundStyle(color)
+            Text(count, format: .number)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title): \(count)")
     }
 }
@@ -957,6 +1070,36 @@ private struct DetailPanel: View {
                     mapToolbar(mapSize: mapSize)
                 }
             }
+
+            if model.hasActiveHostFilters {
+                HStack(spacing: 8) {
+                    Label(
+                        "Vista filtrada: \(model.visibleHosts.count) de \(model.hosts.count) equipos",
+                        systemImage: "line.3.horizontal.decrease.circle.fill"
+                    )
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.blue)
+
+                    if model.selectedRefreshFilter != .all {
+                        Text(model.selectedRefreshFilter.label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Button {
+                        model.resetHostFilters()
+                    } label: {
+                        Label("Mostrar todos", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            }
         }
     }
 
@@ -965,32 +1108,19 @@ private struct DetailPanel: View {
             return model.segment
         }
 
-        if model.refreshComparison != nil, model.selectedRefreshFilter != .all {
-            return "\(model.visibleHosts.count)/\(model.hosts.count) · \(model.selectedRefreshFilter.label)"
-        }
-        return "\(model.visibleHosts.count)/\(model.hosts.count) equipos"
+        return "\(model.visibleHosts.count) de \(model.hosts.count) equipos"
     }
 
     private func mapToolbar(mapSize: CGSize) -> some View {
         HStack(spacing: 10) {
             Picker("Organización", selection: $model.mapOrganization) {
                 ForEach(NetworkMapOrganization.allCases, id: \.rawValue) { organization in
-                    Text(organization.label).tag(organization)
+                    Text("Agrupar: \(organization.label)").tag(organization)
                 }
             }
             .labelsHidden()
-            .frame(width: 128)
-
-            if model.refreshComparison != nil {
-                Picker("Estado", selection: $model.selectedRefreshFilter) {
-                    ForEach(HostRefreshFilter.allCases) { filter in
-                        Text("Estado: \(filter.label)").tag(filter)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 168)
-                .help("Filtrar lista y mapa por resultado del último refresco")
-            }
+            .frame(width: 168)
+            .help("Elegir cómo se agrupan los equipos en el mapa")
 
             MapZoomControls(
                 zoom: Binding(
@@ -1736,7 +1866,7 @@ private struct SelectedHostDetail: View {
                         .font(.headline)
                     Spacer()
                     if annotation.isMissing {
-                        Label("No visto", systemImage: "exclamationmark.triangle.fill")
+                        Label("No detectado", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.orange)
                     } else if let refreshStatus {
@@ -1954,8 +2084,8 @@ private extension HostRefreshStatus {
         switch self {
         case .unchanged: return "sin cambios"
         case .new: return "nuevo"
-        case .updated: return "actualizado"
-        case .missing: return "no visto"
+        case .updated: return "modificado"
+        case .missing: return "no detectado"
         }
     }
 
@@ -1963,8 +2093,8 @@ private extension HostRefreshStatus {
         switch self {
         case .unchanged: return "Sin cambios en el último refresco"
         case .new: return "Nuevo en el último refresco"
-        case .updated: return "Actualizado en el último refresco"
-        case .missing: return "No visto en el último refresco"
+        case .updated: return "Modificado en el último refresco"
+        case .missing: return "No detectado en el último refresco"
         }
     }
 
@@ -1994,9 +2124,29 @@ private extension HostRefreshFilter {
         case .changes: return "Solo cambios"
         case .present: return "Presentes"
         case .new: return "Nuevos"
-        case .updated: return "Actualizados"
+        case .updated: return "Modificados"
         case .unchanged: return "Sin cambios"
-        case .missing: return "No vistos"
+        case .missing: return "No detectados"
+        }
+    }
+
+    var primaryLabel: String {
+        switch self {
+        case .all: return "Todos"
+        case .changes: return "Cambios"
+        case .present: return "Presentes"
+        case .unchanged: return "Sin cambios"
+        case .new, .updated, .missing: return label
+        }
+    }
+
+    var changeLabel: String {
+        switch self {
+        case .changes: return "Todos"
+        case .new: return "Nuevos"
+        case .updated: return "Modificados"
+        case .missing: return "No detectados"
+        case .all, .present, .unchanged: return label
         }
     }
 }

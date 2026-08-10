@@ -315,6 +315,25 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertTrue(map.contains("group_192_168_1_0_24 --> host_192_168_1_30"))
     }
 
+    func testMermaidMapUsesNotDetectedLabelForMissingHost() {
+        let host = HostDiscovery(
+            ipAddress: "192.168.1.20",
+            hostname: "device.local",
+            pingResponded: true,
+            systemType: "Equipo con ping",
+            openPorts: []
+        )
+
+        let map = NetworkMapRenderer.mermaid(
+            segment: "192.168.1.0/24",
+            hosts: [host],
+            annotations: [host.id: HostAnnotation(isMissing: true)]
+        )
+
+        XCTAssertTrue(map.contains("No detectado"))
+        XCTAssertFalse(map.contains("No visto"))
+    }
+
     func testSavedScanRoundTripsConfigurationAndRouter() throws {
         let document = SavedScan(
             configuration: ScanConfiguration(

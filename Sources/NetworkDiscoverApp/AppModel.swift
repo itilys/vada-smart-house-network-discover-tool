@@ -135,9 +135,23 @@ final class AppModel: ObservableObject {
         )
     }
 
+    var hasActiveHostFilters: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || selectedTypeFilter != "Todos"
+            || selectedPortFilter != nil
+            || selectedRefreshFilter != .all
+    }
+
     func refreshStatus(for host: HostDiscovery) -> HostRefreshStatus? {
         guard refreshComparison != nil else { return nil }
         return refreshStatuses[host.id] ?? .unchanged
+    }
+
+    func resetHostFilters() {
+        searchText = ""
+        selectedTypeFilter = "Todos"
+        selectedPortFilter = nil
+        selectedRefreshFilter = .all
     }
 
     func requestRemoveMissingHosts() {
@@ -177,7 +191,7 @@ final class AppModel: ObservableObject {
             ?? visibleHosts.first?.id
         hasUnsavedChanges = true
         isRemoveMissingConfirmationPresented = false
-        showFeedback("\(missingHostIDs.count) equipos no vistos eliminados.", hostID: nil, kind: .info)
+        showFeedback("\(missingHostIDs.count) equipos no detectados eliminados.", hostID: nil, kind: .info)
     }
 
     var visibleMapGroupCount: Int {
@@ -328,6 +342,7 @@ final class AppModel: ObservableObject {
             errorMessage = nil
             actionFeedback = nil
             lastProgressUpdate = .distantPast
+            selectedRefreshFilter = .all
             isScanning = true
             isRefreshing = true
 
@@ -824,8 +839,8 @@ final class AppModel: ObservableObject {
 
         var parts: [String] = []
         if summary.newHosts > 0 { parts.append("\(summary.newHosts) nuevos") }
-        if summary.updatedHosts > 0 { parts.append("\(summary.updatedHosts) actualizados") }
-        if summary.missingHosts > 0 { parts.append("\(summary.missingHosts) no vistos") }
+        if summary.updatedHosts > 0 { parts.append("\(summary.updatedHosts) modificados") }
+        if summary.missingHosts > 0 { parts.append("\(summary.missingHosts) no detectados") }
         if summary.unchangedHosts > 0 { parts.append("\(summary.unchangedHosts) sin cambios") }
         return "Refresco: " + parts.joined(separator: ", ") + "."
     }
@@ -1025,7 +1040,7 @@ private extension HostAnnotation {
         [
             addressAssignment.label,
             section,
-            isMissing ? "no visto desaparecido ausente offline" : nil
+            isMissing ? "no detectado no visto desaparecido ausente offline" : nil
         ]
         .compactMap { $0 }
         .joined(separator: " ")
@@ -1044,8 +1059,8 @@ private extension HostRefreshStatus {
         switch self {
         case .unchanged: return "sin cambios igual estable"
         case .new: return "nuevo aparecido"
-        case .updated: return "actualizado cambiado cambio"
-        case .missing: return "no visto desaparecido ausente offline"
+        case .updated: return "modificado actualizado cambiado cambio"
+        case .missing: return "no detectado no visto desaparecido ausente offline"
         }
     }
 }

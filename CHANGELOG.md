@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.1 - 2026-08-10
+
+- Separa las métricas informativas de los controles que filtran el inventario.
+- Sustituye selectores ambiguos por controles segmentados `Mostrar` y `Tipo de cambio`.
+- Añade etiquetas explícitas para los filtros de tipo, puerto y ordenación.
+- Oculta la comparación anterior durante un refresco y muestra un progreso dedicado.
+- Elimina el selector de estado duplicado del mapa y muestra una banda de filtro activa.
+- Añade acciones visibles para mostrar todos los equipos y restablecer filtros.
+- Sustituye `Actualizados` y `No vistos` por `Modificados` y `No detectados` en la interfaz.
+- Mueve la eliminación de equipos no detectados a un menú de acciones con confirmación.
+
 ## 0.2.0 - 2026-08-10
 
 - Añade un resumen persistente del último refresco con equipos nuevos, actualizados, sin cambios y no vistos.
