@@ -23,6 +23,6 @@ Si no puedes usar un advisory privado, abre un issue con una descripción genera
 
 ## Datos sensibles
 
-Los ficheros JSON exportados por la app pueden contener IPs, nombres de host, MACs, puertos abiertos, secciones, anotaciones y mapas de red. Trátalos como información sensible de la instalación.
+Los ficheros JSON exportados por la app pueden contener IPs, nombres de host, MACs, puertos abiertos, secciones, anotaciones, la fecha y el resultado del último refresco, y mapas de red. Trátalos como información sensible de la instalación.
 
 Consulta también [docs/security-best-practices.md](docs/security-best-practices.md) para la revisión ligera de buenas prácticas aplicada al proyecto.

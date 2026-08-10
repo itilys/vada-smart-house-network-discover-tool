@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-08-10
+
+- Añade un resumen persistente del último refresco con equipos nuevos, actualizados, sin cambios y no vistos.
+- Añade filtros de estado sincronizados entre la lista y el mapa.
+- Permite mostrar solo cambios, solo equipos presentes o una categoría concreta.
+- Conserva los equipos no vistos, incluidos los de IP dinámica, hasta que el usuario decida eliminarlos.
+- Añade eliminación explícita y confirmada de equipos no vistos.
+- Hace que las exportaciones PNG y Mermaid respeten los filtros visibles.
+- Mantiene compatibilidad de lectura con los documentos guardados por versiones anteriores.
+
 ## 0.1.3 - 2026-08-03
 
 - Añade la organización del mapa por tipo de equipo.
