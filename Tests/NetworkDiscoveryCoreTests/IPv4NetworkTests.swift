@@ -348,7 +348,11 @@ final class IPv4NetworkTests: XCTestCase {
                     lastSeen: Date(timeIntervalSince1970: 42)
                 )
             ],
-            mapOrganization: .systemType
+            mapOrganization: .systemType,
+            refreshComparison: RefreshComparison(
+                completedAt: Date(timeIntervalSince1970: 84),
+                statuses: ["10.0.0.1": .missing]
+            )
         )
 
         let data = try JSONEncoder().encode(document)
@@ -367,7 +371,9 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertEqual(decoded.annotations["10.0.0.1"]?.isMissing, true)
         XCTAssertEqual(decoded.annotations["10.0.0.1"]?.lastSeen, Date(timeIntervalSince1970: 42))
         XCTAssertEqual(decoded.mapOrganization, .systemType)
-        XCTAssertEqual(decoded.schemaVersion, 6)
+        XCTAssertEqual(decoded.schemaVersion, 7)
+        XCTAssertEqual(decoded.refreshComparison?.completedAt, Date(timeIntervalSince1970: 84))
+        XCTAssertEqual(decoded.refreshComparison?.statuses["10.0.0.1"], .missing)
     }
 
     func testSavedScanDecodesLegacyDocumentWithoutRefreshMetadata() throws {
@@ -419,5 +425,38 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertEqual(decoded.annotations["192.168.1.241"]?.section, "Camaras")
         XCTAssertEqual(decoded.annotations["192.168.1.241"]?.isMissing, false)
         XCTAssertNil(decoded.annotations["192.168.1.241"]?.lastSeen)
+        XCTAssertNil(decoded.refreshComparison)
+    }
+
+    func testRefreshComparisonCountsEveryStatus() {
+        let comparison = RefreshComparison(
+            completedAt: Date(timeIntervalSince1970: 100),
+            statuses: [
+                "192.168.1.10": .new,
+                "192.168.1.20": .updated,
+                "192.168.1.30": .unchanged,
+                "192.168.1.40": .unchanged,
+                "192.168.1.50": .missing
+            ]
+        )
+
+        XCTAssertEqual(comparison.count(for: .new), 1)
+        XCTAssertEqual(comparison.count(for: .updated), 1)
+        XCTAssertEqual(comparison.count(for: .unchanged), 2)
+        XCTAssertEqual(comparison.count(for: .missing), 1)
+    }
+
+    func testRefreshFiltersSeparateChangesAndPresentHosts() {
+        XCTAssertTrue(HostRefreshFilter.changes.includes(.new))
+        XCTAssertTrue(HostRefreshFilter.changes.includes(.updated))
+        XCTAssertTrue(HostRefreshFilter.changes.includes(.missing))
+        XCTAssertFalse(HostRefreshFilter.changes.includes(.unchanged))
+
+        XCTAssertTrue(HostRefreshFilter.present.includes(.new))
+        XCTAssertTrue(HostRefreshFilter.present.includes(.updated))
+        XCTAssertTrue(HostRefreshFilter.present.includes(.unchanged))
+        XCTAssertFalse(HostRefreshFilter.present.includes(.missing))
+        XCTAssertTrue(HostRefreshFilter.all.includes(nil))
+        XCTAssertFalse(HostRefreshFilter.new.includes(nil))
     }
 }

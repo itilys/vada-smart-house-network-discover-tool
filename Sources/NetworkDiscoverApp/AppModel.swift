@@ -39,10 +39,13 @@ struct HostActionFeedback: Identifiable, Equatable {
     let kind: Kind
 }
 
-enum HostRefreshStatus: String, Equatable {
-    case new
-    case updated
-    case missing
+struct RefreshStatusSummary: Equatable {
+    let newHosts: Int
+    let updatedHosts: Int
+    let unchangedHosts: Int
+    let missingHosts: Int
+
+    var changeCount: Int { newHosts + updatedHosts + missingHosts }
 }
 
 @MainActor
@@ -55,6 +58,7 @@ final class AppModel: ObservableObject {
     @Published var searchText: String = "" { didSet { refreshVisibleHosts() } }
     @Published var selectedTypeFilter: String = "Todos" { didSet { refreshVisibleHosts() } }
     @Published var selectedPortFilter: Int? { didSet { refreshVisibleHosts() } }
+    @Published var selectedRefreshFilter: HostRefreshFilter = .all { didSet { refreshVisibleHosts() } }
     @Published var sortOption: HostSortOption = .ip { didSet { refreshVisibleHosts() } }
     @Published var sortAscending: Bool = true { didSet { refreshVisibleHosts() } }
     @Published var routerHostIDs: Set<HostDiscovery.ID> = [] { didSet { markDirtyIfNeeded() } }
@@ -66,7 +70,7 @@ final class AppModel: ObservableObject {
             refreshVisibleHosts()
         }
     }
-    @Published private(set) var refreshStatuses: [HostDiscovery.ID: HostRefreshStatus] = [:] {
+    @Published private(set) var refreshComparison: RefreshComparison? {
         didSet { refreshVisibleHosts() }
     }
     @Published var mapOrganization: NetworkMapOrganization = .flat { didSet { markDirtyIfNeeded() } }
@@ -86,6 +90,7 @@ final class AppModel: ObservableObject {
     @Published var selectedHostID: HostDiscovery.ID?
     @Published var errorMessage: String?
     @Published var isRescanConfirmationPresented = false
+    @Published var isRemoveMissingConfirmationPresented = false
     @Published private(set) var actionFeedback: HostActionFeedback?
 
     private var scanTask: Task<Void, Never>?
@@ -94,26 +99,6 @@ final class AppModel: ObservableObject {
     private var pendingHostFlushTask: Task<Void, Never>?
     private var lastProgressUpdate = Date.distantPast
     private var isApplyingDocument = false
-
-    private struct RefreshSummary {
-        let newHosts: Int
-        let updatedHosts: Int
-        let missingKeptHosts: Int
-        let dynamicRemovedHosts: Int
-
-        var message: String {
-            if newHosts == 0, updatedHosts == 0, missingKeptHosts == 0, dynamicRemovedHosts == 0 {
-                return "Refresco completado sin cambios."
-            }
-
-            var parts: [String] = []
-            if newHosts > 0 { parts.append("\(newHosts) nuevos") }
-            if updatedHosts > 0 { parts.append("\(updatedHosts) actualizados") }
-            if missingKeptHosts > 0 { parts.append("\(missingKeptHosts) no vistos conservados") }
-            if dynamicRemovedHosts > 0 { parts.append("\(dynamicRemovedHosts) dinámicos borrados") }
-            return "Refresco: " + parts.joined(separator: ", ") + "."
-        }
-    }
 
     var selectedHost: HostDiscovery? {
         guard let selectedHostID else { return nil }
@@ -128,12 +113,71 @@ final class AppModel: ObservableObject {
     var mermaidMap: String {
         NetworkMapRenderer.mermaid(
             segment: segment,
-            hosts: hosts,
+            hosts: visibleHosts,
             routerHostIDs: routerHostIDs,
             defaultInternetHostID: defaultInternetHostID,
             annotations: hostAnnotations,
             organization: mapOrganization
         )
+    }
+
+    var refreshStatuses: [HostDiscovery.ID: HostRefreshStatus] {
+        refreshComparison?.statuses ?? [:]
+    }
+
+    var refreshSummary: RefreshStatusSummary? {
+        guard let refreshComparison else { return nil }
+        return RefreshStatusSummary(
+            newHosts: refreshComparison.count(for: .new),
+            updatedHosts: refreshComparison.count(for: .updated),
+            unchangedHosts: refreshComparison.count(for: .unchanged),
+            missingHosts: refreshComparison.count(for: .missing)
+        )
+    }
+
+    func refreshStatus(for host: HostDiscovery) -> HostRefreshStatus? {
+        guard refreshComparison != nil else { return nil }
+        return refreshStatuses[host.id] ?? .unchanged
+    }
+
+    func requestRemoveMissingHosts() {
+        guard refreshSummary?.missingHosts ?? 0 > 0 else { return }
+        isRemoveMissingConfirmationPresented = true
+    }
+
+    func removeMissingHosts() {
+        let missingHostIDs = Set(refreshStatuses.compactMap { item in
+            item.value == .missing ? item.key : nil
+        })
+        guard !missingHostIDs.isEmpty else { return }
+
+        isApplyingDocument = true
+        hosts.removeAll { missingHostIDs.contains($0.id) }
+        hostAnnotations = hostAnnotations.filter { !missingHostIDs.contains($0.key) }
+        routerHostIDs = routerHostIDs.filter { !missingHostIDs.contains($0) }
+        if let defaultInternetHostID, missingHostIDs.contains(defaultInternetHostID) {
+            self.defaultInternetHostID = nil
+        }
+
+        if let comparison = refreshComparison {
+            let remainingStatuses = comparison.statuses.filter { !missingHostIDs.contains($0.key) }
+            refreshComparison = remainingStatuses.isEmpty ? nil : RefreshComparison(
+                completedAt: comparison.completedAt,
+                statuses: remainingStatuses
+            )
+        }
+        isApplyingDocument = false
+
+        if refreshComparison == nil || selectedRefreshFilter == .missing {
+            selectedRefreshFilter = .all
+        }
+        selectedHostID = selectedHostID.flatMap { missingHostIDs.contains($0) ? nil : $0 }
+            ?? defaultInternetHostID
+            ?? routerHostIDs.sorted().first
+            ?? visibleHosts.first?.id
+        hasUnsavedChanges = true
+        isRemoveMissingConfirmationPresented = false
+        showFeedback("\(missingHostIDs.count) equipos no vistos eliminados.", hostID: nil, kind: .info)
     }
 
     var visibleMapGroupCount: Int {
@@ -191,7 +235,8 @@ final class AppModel: ObservableObject {
             defaultInternetHostID = nil
             dhcpRanges = []
             hostAnnotations = [:]
-            refreshStatuses = [:]
+            refreshComparison = nil
+            selectedRefreshFilter = .all
             hasUnsavedChanges = false
             progress = ScanProgress(completedHosts: 0, totalHosts: 0)
             errorMessage = nil
@@ -300,7 +345,7 @@ final class AppModel: ObservableObject {
 
                     await MainActor.run {
                         guard self.scanGeneration == generation else { return }
-                        let summary = self.applyRefreshResults(
+                        let comparison = self.applyRefreshResults(
                             results,
                             previousHosts: previousHosts,
                             previousAnnotations: previousAnnotations,
@@ -309,7 +354,7 @@ final class AppModel: ObservableObject {
                             previousSelectedHostID: previousSelectedHostID
                         )
                         self.hasUnsavedChanges = true
-                        self.showFeedback(summary.message, hostID: nil, kind: .info)
+                        self.showFeedback(self.refreshMessage(for: comparison), hostID: nil, kind: .info)
                         self.isScanning = false
                         self.isRefreshing = false
                         self.scanTask = nil
@@ -530,6 +575,13 @@ final class AppModel: ObservableObject {
     func saveScan() -> Bool {
         do {
             let ports = try PortCatalog.parsePorts(portsText)
+            let hostIDs = Set(hosts.map(\.id))
+            let persistedComparison = refreshComparison.map { comparison in
+                RefreshComparison(
+                    completedAt: comparison.completedAt,
+                    statuses: comparison.statuses.filter { hostIDs.contains($0.key) }
+                )
+            }
             let document = SavedScan(
                 configuration: ScanConfiguration(
                     segment: segment,
@@ -546,7 +598,8 @@ final class AppModel: ObservableObject {
                 annotations: hostAnnotations.filter { item in
                     hosts.contains(where: { $0.id == item.key })
                 },
-                mapOrganization: mapOrganization
+                mapOrganization: mapOrganization,
+                refreshComparison: persistedComparison
             )
 
 #if os(macOS)
@@ -666,7 +719,7 @@ final class AppModel: ObservableObject {
         previousRouterHostIDs: Set<HostDiscovery.ID>,
         previousDefaultInternetHostID: HostDiscovery.ID?,
         previousSelectedHostID: HostDiscovery.ID?
-    ) -> RefreshSummary {
+    ) -> RefreshComparison {
         let now = Date()
         let sortedDiscoveredHosts = discoveredHosts.sorted {
             IPv4Address.sortKey(for: $0.ipAddress) < IPv4Address.sortKey(for: $1.ipAddress)
@@ -678,8 +731,6 @@ final class AppModel: ObservableObject {
         var newRouterHostIDs = previousRouterHostIDs
         var newDefaultInternetHostID = previousDefaultInternetHostID
         var newSelectedHostID = previousSelectedHostID
-        var newHostsCount = 0
-        var updatedHostsCount = 0
 
         for discoveredHost in sortedDiscoveredHosts {
             if let previousHost = bestPreviousMatch(
@@ -709,33 +760,25 @@ final class AppModel: ObservableObject {
                 }
 
                 if hostDidChange(from: previousHost, to: discoveredHost) {
-                    updatedHostsCount += 1
                     nextRefreshStatuses[discoveredHost.id] = .updated
+                } else {
+                    nextRefreshStatuses[discoveredHost.id] = .unchanged
                 }
             } else {
-                newHostsCount += 1
                 mergedHosts.append(discoveredHost)
                 mergedAnnotations[discoveredHost.id] = HostAnnotation(lastSeen: now)
                 nextRefreshStatuses[discoveredHost.id] = .new
             }
         }
 
-        var missingKeptHostsCount = 0
-        var dynamicRemovedHostsCount = 0
         for previousHost in previousHosts where !consumedPreviousHostIDs.contains(previousHost.id) {
             var annotation = previousAnnotations[previousHost.id] ?? HostAnnotation()
-
-            if annotation.addressAssignment == .dynamicAddress {
-                dynamicRemovedHostsCount += 1
-                continue
-            }
 
             annotation.isMissing = true
             annotation.lastSeen = annotation.lastSeen ?? previousHost.discoveredAt
             mergedHosts.append(previousHost)
             mergedAnnotations[previousHost.id] = annotation
             nextRefreshStatuses[previousHost.id] = .missing
-            missingKeptHostsCount += 1
         }
 
         mergedHosts.sort {
@@ -758,14 +801,33 @@ final class AppModel: ObservableObject {
 
         hosts = mergedHosts
         hostAnnotations = mergedAnnotations.filter { mergedHostIDs.contains($0.key) }
-        refreshStatuses = nextRefreshStatuses.filter { mergedHostIDs.contains($0.key) }
-
-        return RefreshSummary(
-            newHosts: newHostsCount,
-            updatedHosts: updatedHostsCount,
-            missingKeptHosts: missingKeptHostsCount,
-            dynamicRemovedHosts: dynamicRemovedHostsCount
+        let comparison = RefreshComparison(
+            completedAt: now,
+            statuses: nextRefreshStatuses.filter { mergedHostIDs.contains($0.key) }
         )
+        refreshComparison = comparison
+        selectedRefreshFilter = .all
+
+        return comparison
+    }
+
+    private func refreshMessage(for comparison: RefreshComparison) -> String {
+        let summary = RefreshStatusSummary(
+            newHosts: comparison.count(for: .new),
+            updatedHosts: comparison.count(for: .updated),
+            unchangedHosts: comparison.count(for: .unchanged),
+            missingHosts: comparison.count(for: .missing)
+        )
+        guard summary.changeCount > 0 else {
+            return "Refresco completado: \(summary.unchangedHosts) sin cambios."
+        }
+
+        var parts: [String] = []
+        if summary.newHosts > 0 { parts.append("\(summary.newHosts) nuevos") }
+        if summary.updatedHosts > 0 { parts.append("\(summary.updatedHosts) actualizados") }
+        if summary.missingHosts > 0 { parts.append("\(summary.missingHosts) no vistos") }
+        if summary.unchangedHosts > 0 { parts.append("\(summary.unchangedHosts) sin cambios") }
+        return "Refresco: " + parts.joined(separator: ", ") + "."
     }
 
     private func bestPreviousMatch(
@@ -821,7 +883,19 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         isScanning = false
         isRefreshing = false
-        refreshStatuses = [:]
+        if let persistedComparison = document.refreshComparison {
+            let statuses = Dictionary(uniqueKeysWithValues: hosts.map { host in
+                let fallback: HostRefreshStatus = hostAnnotations[host.id]?.isMissing == true ? .missing : .unchanged
+                return (host.id, persistedComparison.statuses[host.id] ?? fallback)
+            })
+            refreshComparison = RefreshComparison(
+                completedAt: persistedComparison.completedAt,
+                statuses: statuses
+            )
+        } else {
+            refreshComparison = nil
+        }
+        selectedRefreshFilter = .all
         hasUnsavedChanges = false
 
         if selectedTypeFilter != "Todos", !typeFilters.contains(selectedTypeFilter) {
@@ -861,7 +935,8 @@ final class AppModel: ObservableObject {
                 || (refreshStatuses[host.id]?.searchableText.contains(query) ?? false)
             let matchesType = selectedTypeFilter == "Todos" || host.systemType == selectedTypeFilter
             let matchesPort = selectedPortFilter == nil || host.openPorts.contains { $0.port == selectedPortFilter }
-            return matchesQuery && matchesType && matchesPort
+            let matchesRefresh = selectedRefreshFilter.includes(refreshStatus(for: host))
+            return matchesQuery && matchesType && matchesPort && matchesRefresh
         }
 
         visibleHosts = filtered.sorted { lhs, rhs in
@@ -967,6 +1042,7 @@ private extension HostDiscovery {
 private extension HostRefreshStatus {
     var searchableText: String {
         switch self {
+        case .unchanged: return "sin cambios igual estable"
         case .new: return "nuevo aparecido"
         case .updated: return "actualizado cambiado cambio"
         case .missing: return "no visto desaparecido ausente offline"

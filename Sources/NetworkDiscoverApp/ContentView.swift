@@ -48,6 +48,14 @@ struct ContentView: View {
         } message: {
             Text("El escaneo actual tiene cambios sin guardar. Si continúas, se perderán de la vista actual.")
         }
+        .alert("Eliminar equipos no vistos", isPresented: $model.isRemoveMissingConfirmationPresented) {
+            Button("Eliminar", role: .destructive) {
+                model.removeMissingHosts()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Se eliminarán del inventario los equipos que no respondieron en el último refresco. Esta acción no afecta a ningún equipo de la red.")
+        }
 #if os(macOS)
         .task {
             await updateManager.checkIfNeeded()
@@ -396,7 +404,7 @@ private struct HostListView: View {
                 ContentUnavailableView(
                     "Sin coincidencias",
                     systemImage: "line.3.horizontal.decrease.circle",
-                    description: Text("Ajusta el texto, tipo o puerto del filtro.")
+                    description: Text("Ajusta el texto, tipo, puerto o estado del filtro.")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -523,6 +531,10 @@ private struct HostListView: View {
                 TextField("Filtrar por nombre, IP, tipo o puerto", text: $model.searchText)
                     .textFieldStyle(.roundedBorder)
 
+                if model.refreshSummary != nil {
+                    RefreshComparisonSummaryView(model: model)
+                }
+
                 HStack(spacing: 8) {
                     Picker("Tipo", selection: $model.selectedTypeFilter) {
                         ForEach(model.typeFilters, id: \.self) { type in
@@ -549,6 +561,17 @@ private struct HostListView: View {
                 }
 
                 HStack(spacing: 8) {
+                    if model.refreshComparison != nil {
+                        Picker("Estado", selection: $model.selectedRefreshFilter) {
+                            ForEach(HostRefreshFilter.allCases) { filter in
+                                Text("Estado: \(filter.label)").tag(filter)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(maxWidth: .infinity)
+                        .help("Filtrar por resultado del último refresco")
+                    }
+
                     Picker("Orden", selection: $model.sortOption) {
                         ForEach(HostSortOption.allCases) { option in
                             Text(option.label).tag(option)
@@ -599,7 +622,7 @@ private struct HostRow: View {
                         .font(.headline.monospacedDigit())
                     if annotation.isMissing {
                         RefreshStatusPill(status: .missing)
-                    } else if let refreshStatus {
+                    } else if let refreshStatus, refreshStatus != .unchanged {
                         RefreshStatusPill(status: refreshStatus)
                     }
                     if host.pingResponded {
@@ -690,7 +713,7 @@ private struct HostRow: View {
     private var metadataText: String {
         [
             annotation.isMissing ? "No visto en el último refresco" : nil,
-            refreshStatus?.metadataText,
+            refreshStatus == .unchanged ? nil : refreshStatus?.metadataText,
             annotation.addressAssignment == .unknown ? nil : annotation.addressAssignment.label,
             annotation.section.isEmpty ? nil : annotation.section,
             host.macAddress
@@ -758,6 +781,117 @@ private struct FeedbackBanner: View {
             .padding(.vertical, 7)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(feedback.kind.tint.opacity(0.11), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct RefreshComparisonSummaryView: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        if let summary = model.refreshSummary,
+           let comparison = model.refreshComparison {
+            VStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    RefreshMetricButton(
+                        title: "Nuevos",
+                        count: summary.newHosts,
+                        symbol: "plus.circle.fill",
+                        color: .green,
+                        filter: .new,
+                        selectedFilter: $model.selectedRefreshFilter
+                    )
+                    RefreshMetricButton(
+                        title: "Actualizados",
+                        count: summary.updatedHosts,
+                        symbol: "arrow.triangle.2.circlepath.circle.fill",
+                        color: .blue,
+                        filter: .updated,
+                        selectedFilter: $model.selectedRefreshFilter
+                    )
+                    RefreshMetricButton(
+                        title: "Sin cambios",
+                        count: summary.unchangedHosts,
+                        symbol: "checkmark.circle.fill",
+                        color: .gray,
+                        filter: .unchanged,
+                        selectedFilter: $model.selectedRefreshFilter
+                    )
+                    RefreshMetricButton(
+                        title: "No vistos",
+                        count: summary.missingHosts,
+                        symbol: "exclamationmark.triangle.fill",
+                        color: .orange,
+                        filter: .missing,
+                        selectedFilter: $model.selectedRefreshFilter
+                    )
+                }
+
+                HStack(spacing: 8) {
+                    Text(comparison.completedAt, format: .dateTime.day().month(.abbreviated).hour().minute())
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Spacer(minLength: 0)
+
+                    if summary.changeCount > 0 {
+                        Button {
+                            model.selectedRefreshFilter = .changes
+                        } label: {
+                            Label("Ver cambios", systemImage: "line.3.horizontal.decrease.circle")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+
+                    if summary.missingHosts > 0 {
+                        Button {
+                            model.requestRemoveMissingHosts()
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Eliminar equipos no vistos del inventario")
+                    }
+                }
+            }
+            .padding(8)
+            .background(.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+}
+
+private struct RefreshMetricButton: View {
+    let title: String
+    let count: Int
+    let symbol: String
+    let color: Color
+    let filter: HostRefreshFilter
+    @Binding var selectedFilter: HostRefreshFilter
+
+    var body: some View {
+        Button {
+            selectedFilter = selectedFilter == filter ? .all : filter
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .foregroundStyle(color)
+                Text(count, format: .number)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .contentShape(Rectangle())
+            .background(
+                selectedFilter == filter ? color.opacity(0.12) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title): \(count)")
     }
 }
 
@@ -831,6 +965,9 @@ private struct DetailPanel: View {
             return model.segment
         }
 
+        if model.refreshComparison != nil, model.selectedRefreshFilter != .all {
+            return "\(model.visibleHosts.count)/\(model.hosts.count) · \(model.selectedRefreshFilter.label)"
+        }
         return "\(model.visibleHosts.count)/\(model.hosts.count) equipos"
     }
 
@@ -843,6 +980,17 @@ private struct DetailPanel: View {
             }
             .labelsHidden()
             .frame(width: 128)
+
+            if model.refreshComparison != nil {
+                Picker("Estado", selection: $model.selectedRefreshFilter) {
+                    ForEach(HostRefreshFilter.allCases) { filter in
+                        Text("Estado: \(filter.label)").tag(filter)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 168)
+                .help("Filtrar lista y mapa por resultado del último refresco")
+            }
 
             MapZoomControls(
                 zoom: Binding(
@@ -877,7 +1025,7 @@ private struct DetailPanel: View {
                     Image(systemName: "photo")
                 }
             }
-            .disabled(model.hosts.isEmpty)
+            .disabled(model.visibleHosts.isEmpty)
             .help("Exportar mapa como imagen PNG")
 
             Button {
@@ -888,7 +1036,7 @@ private struct DetailPanel: View {
                     Image(systemName: "doc.on.doc")
                 }
             }
-            .disabled(model.hosts.isEmpty)
+            .disabled(model.visibleHosts.isEmpty)
             .help("Copiar Mermaid")
         }
         .controlSize(.regular)
@@ -918,7 +1066,7 @@ private struct DetailPanel: View {
     @ViewBuilder
     private func mapPane(mapSize: CGSize) -> some View {
         if model.visibleHosts.isEmpty {
-            EmptyMapPane(segment: model.segment)
+            EmptyMapPane(segment: model.segment, isFiltered: !model.hosts.isEmpty)
                 .frame(minHeight: 420, idealHeight: 560)
                 .layoutPriority(1)
         } else {
@@ -1441,6 +1589,7 @@ private struct EmptyMapPane: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let segment: String
+    let isFiltered: Bool
 
     var body: some View {
         ZStack {
@@ -1450,16 +1599,18 @@ private struct EmptyMapPane: View {
                 .stroke(.secondary.opacity(colorScheme == .light ? 0.10 : 0.08), lineWidth: 1)
 
             VStack(spacing: 8) {
-                Image(systemName: "network")
+                Image(systemName: isFiltered ? "line.3.horizontal.decrease.circle" : "network")
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(segment)
-                    .font(.title3.weight(.semibold).monospacedDigit())
-                    .lineLimit(1)
+                Text(isFiltered ? "Sin equipos para este filtro" : segment)
+                    .font(.title3.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.75)
-                Text("0 equipos")
+                Text(isFiltered ? "Cambia el estado o los filtros de la lista" : "0 equipos")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 30)
             .padding(.vertical, 22)
@@ -1801,6 +1952,7 @@ private extension HostActionFeedback.Kind {
 private extension HostRefreshStatus {
     var label: String {
         switch self {
+        case .unchanged: return "sin cambios"
         case .new: return "nuevo"
         case .updated: return "actualizado"
         case .missing: return "no visto"
@@ -1809,6 +1961,7 @@ private extension HostRefreshStatus {
 
     var metadataText: String {
         switch self {
+        case .unchanged: return "Sin cambios en el último refresco"
         case .new: return "Nuevo en el último refresco"
         case .updated: return "Actualizado en el último refresco"
         case .missing: return "No visto en el último refresco"
@@ -1817,6 +1970,7 @@ private extension HostRefreshStatus {
 
     var tint: Color {
         switch self {
+        case .unchanged: return .gray
         case .new: return .green
         case .updated: return .blue
         case .missing: return .orange
@@ -1825,9 +1979,24 @@ private extension HostRefreshStatus {
 
     var symbolName: String {
         switch self {
+        case .unchanged: return "checkmark.circle.fill"
         case .new: return "plus.circle.fill"
         case .updated: return "arrow.triangle.2.circlepath.circle.fill"
         case .missing: return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+private extension HostRefreshFilter {
+    var label: String {
+        switch self {
+        case .all: return "Todos"
+        case .changes: return "Solo cambios"
+        case .present: return "Presentes"
+        case .new: return "Nuevos"
+        case .updated: return "Actualizados"
+        case .unchanged: return "Sin cambios"
+        case .missing: return "No vistos"
         }
     }
 }

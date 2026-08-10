@@ -216,6 +216,61 @@ public enum NetworkMapOrganization: String, Codable, CaseIterable, Sendable {
     }
 }
 
+public enum HostRefreshStatus: String, Codable, CaseIterable, Sendable {
+    case unchanged
+    case new
+    case updated
+    case missing
+}
+
+public enum HostRefreshFilter: String, Codable, CaseIterable, Identifiable, Sendable {
+    case all
+    case changes
+    case present
+    case new
+    case updated
+    case unchanged
+    case missing
+
+    public var id: String { rawValue }
+
+    public func includes(_ status: HostRefreshStatus?) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .changes:
+            return status == .new || status == .updated || status == .missing
+        case .present:
+            return status == .new || status == .updated || status == .unchanged
+        case .new:
+            return status == .new
+        case .updated:
+            return status == .updated
+        case .unchanged:
+            return status == .unchanged
+        case .missing:
+            return status == .missing
+        }
+    }
+}
+
+public struct RefreshComparison: Hashable, Codable, Sendable {
+    public var completedAt: Date
+    public var statuses: [HostDiscovery.ID: HostRefreshStatus]
+
+    public init(
+        completedAt: Date = Date(),
+        statuses: [HostDiscovery.ID: HostRefreshStatus]
+    ) {
+        self.completedAt = completedAt
+        self.statuses = statuses
+    }
+
+    public func count(for status: HostRefreshStatus) -> Int {
+        statuses.values.filter { $0 == status }.count
+    }
+}
+
 public struct SavedScan: Hashable, Codable, Sendable {
     public let schemaVersion: Int
     public var savedAt: Date
@@ -227,9 +282,10 @@ public struct SavedScan: Hashable, Codable, Sendable {
     public var dhcpRanges: [DHCPRange]
     public var annotations: [HostDiscovery.ID: HostAnnotation]
     public var mapOrganization: NetworkMapOrganization
+    public var refreshComparison: RefreshComparison?
 
     public init(
-        schemaVersion: Int = 6,
+        schemaVersion: Int = 7,
         savedAt: Date = Date(),
         configuration: ScanConfiguration,
         hosts: [HostDiscovery],
@@ -238,7 +294,8 @@ public struct SavedScan: Hashable, Codable, Sendable {
         defaultInternetHostID: HostDiscovery.ID? = nil,
         dhcpRanges: [DHCPRange] = [],
         annotations: [HostDiscovery.ID: HostAnnotation] = [:],
-        mapOrganization: NetworkMapOrganization = .flat
+        mapOrganization: NetworkMapOrganization = .flat,
+        refreshComparison: RefreshComparison? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.savedAt = savedAt
@@ -251,6 +308,7 @@ public struct SavedScan: Hashable, Codable, Sendable {
         self.dhcpRanges = dhcpRanges
         self.annotations = annotations
         self.mapOrganization = mapOrganization
+        self.refreshComparison = refreshComparison
     }
 
     enum CodingKeys: String, CodingKey {
@@ -264,6 +322,7 @@ public struct SavedScan: Hashable, Codable, Sendable {
         case dhcpRanges
         case annotations
         case mapOrganization
+        case refreshComparison
     }
 
     public init(from decoder: Decoder) throws {
@@ -279,6 +338,7 @@ public struct SavedScan: Hashable, Codable, Sendable {
         dhcpRanges = try container.decodeIfPresent([DHCPRange].self, forKey: .dhcpRanges) ?? []
         annotations = try container.decodeIfPresent([HostDiscovery.ID: HostAnnotation].self, forKey: .annotations) ?? [:]
         mapOrganization = try container.decodeIfPresent(NetworkMapOrganization.self, forKey: .mapOrganization) ?? .flat
+        refreshComparison = try container.decodeIfPresent(RefreshComparison.self, forKey: .refreshComparison)
 
         if let routerHostID, !routerHostIDs.contains(routerHostID) {
             routerHostIDs.insert(routerHostID)

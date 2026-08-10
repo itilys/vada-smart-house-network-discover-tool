@@ -227,7 +227,7 @@ private struct MapHostNode: View {
                         .font(.caption2)
                         .foregroundStyle(.orange)
                         .accessibilityLabel("No visto en el último refresco")
-                } else if let refreshStatus {
+                } else if let refreshStatus, refreshStatus != .unchanged {
                     Image(systemName: refreshStatus.symbolName)
                         .font(.caption2)
                         .foregroundStyle(refreshStatus.tint)
@@ -287,7 +287,7 @@ private struct MapHostNode: View {
 
         if annotation.isMissing {
             parts.append("no visto")
-        } else if let refreshStatus {
+        } else if let refreshStatus, refreshStatus != .unchanged {
             parts.append(refreshStatus.shortMapLabel)
         } else if annotation.addressAssignment != .unknown {
             parts.append(annotation.addressAssignment.shortLabel)
@@ -299,7 +299,7 @@ private struct MapHostNode: View {
 
     private var borderColor: Color {
         if annotation.isMissing { return .orange }
-        if let refreshStatus { return refreshStatus.tint }
+        if let refreshStatus, refreshStatus != .unchanged { return refreshStatus.tint }
         if isDefaultInternet { return .cyan }
         return isRouter ? .accentColor : host.mapColor
     }
@@ -1092,6 +1092,7 @@ private extension HostAddressAssignment {
 private extension HostRefreshStatus {
     var shortMapLabel: String {
         switch self {
+        case .unchanged: return "igual"
         case .new: return "nuevo"
         case .updated: return "cambio"
         case .missing: return "no visto"
@@ -1100,6 +1101,7 @@ private extension HostRefreshStatus {
 
     var tint: Color {
         switch self {
+        case .unchanged: return .gray
         case .new: return .green
         case .updated: return .blue
         case .missing: return .orange
@@ -1108,6 +1110,7 @@ private extension HostRefreshStatus {
 
     var symbolName: String {
         switch self {
+        case .unchanged: return "checkmark.circle.fill"
         case .new: return "plus.circle.fill"
         case .updated: return "arrow.triangle.2.circlepath.circle.fill"
         case .missing: return "exclamationmark.triangle.fill"
@@ -1116,6 +1119,7 @@ private extension HostRefreshStatus {
 
     var accessibilityLabel: String {
         switch self {
+        case .unchanged: return "Sin cambios en el último refresco"
         case .new: return "Nuevo en el último refresco"
         case .updated: return "Actualizado en el último refresco"
         case .missing: return "No visto en el último refresco"
