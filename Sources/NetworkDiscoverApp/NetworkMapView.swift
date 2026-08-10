@@ -226,7 +226,7 @@ private struct MapHostNode: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption2)
                         .foregroundStyle(.orange)
-                        .accessibilityLabel("No visto en el último refresco")
+                        .accessibilityLabel("No detectado en el último refresco")
                 } else if let refreshStatus, refreshStatus != .unchanged {
                     Image(systemName: refreshStatus.symbolName)
                         .font(.caption2)
@@ -286,7 +286,7 @@ private struct MapHostNode: View {
         }
 
         if annotation.isMissing {
-            parts.append("no visto")
+            parts.append("no detectado")
         } else if let refreshStatus, refreshStatus != .unchanged {
             parts.append(refreshStatus.shortMapLabel)
         } else if annotation.addressAssignment != .unknown {
@@ -894,7 +894,7 @@ private struct NetworkMapLayout {
             parts.append(section)
         }
         if annotation?.isMissing == true {
-            parts.append("no visto")
+            parts.append("no detectado")
         } else if let assignment = annotation?.addressAssignment, assignment != .unknown {
             parts.append(assignment.shortLabel)
         }
@@ -1095,7 +1095,7 @@ private extension HostRefreshStatus {
         case .unchanged: return "igual"
         case .new: return "nuevo"
         case .updated: return "cambio"
-        case .missing: return "no visto"
+        case .missing: return "no detectado"
         }
     }
 
@@ -1121,8 +1121,8 @@ private extension HostRefreshStatus {
         switch self {
         case .unchanged: return "Sin cambios en el último refresco"
         case .new: return "Nuevo en el último refresco"
-        case .updated: return "Actualizado en el último refresco"
-        case .missing: return "No visto en el último refresco"
+        case .updated: return "Modificado en el último refresco"
+        case .missing: return "No detectado en el último refresco"
         }
     }
 }

@@ -36,7 +36,7 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.2.0 |
+| Versión publicada | 0.2.1 |
 | Última actualización | 2026-08-10 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
@@ -53,8 +53,8 @@ flowchart LR
 - Detección específica de VaDa SolarBrain / VaDa SolarGenius por el puerto 8090.
 - Comprobación semanal de nuevas versiones publicadas en GitHub, con consulta manual desde el menú de la app.
 - Listado filtrable por texto, tipo y puerto, con ordenación.
-- Comparación del último refresco con resumen de equipos nuevos, actualizados, sin cambios y no vistos.
-- Filtro de estado compartido entre lista y mapa, con vistas de cambios, presentes y no vistos.
+- Comparación del último refresco con resumen de equipos nuevos, modificados, sin cambios y no detectados.
+- Controles visuales compartidos entre lista y mapa para mostrar todos, cambios, presentes o una categoría concreta.
 - Mapa visual organizable por plano, subred, asignación IP, sección o tipo de equipo, con router marcado, zoom, pan y export Mermaid.
 - Exportación del mapa a PNG con marca VaDa SmartHouse.
 - Guardado/carga de escaneos en JSON.
@@ -82,10 +82,11 @@ sequenceDiagram
 | Accion | Donde | Resultado |
 | --- | --- | --- |
 | `Escanear` | Barra lateral | Lanza un descubrimiento nuevo del segmento configurado. |
-| `Refrescar` | Barra lateral | Compara el inventario con la red y resume equipos nuevos, actualizados, sin cambios y no vistos. |
-| `Estado: ...` | Lista o mapa | Filtra ambas vistas por cambios, presentes, nuevos, actualizados, sin cambios o no vistos. |
-| `Ver cambios` | Resumen del refresco | Muestra nuevos, actualizados y no vistos en una sola vista. |
-| Papelera | Resumen del refresco | Elimina del inventario los no vistos tras pedir confirmación; no actúa sobre la red. |
+| `Refrescar` | Barra lateral | Compara el inventario con la red y resume equipos nuevos, modificados, sin cambios y no detectados. |
+| `Mostrar` | Resultado del refresco | Filtra la lista y el mapa por todos, cambios, presentes o sin cambios. |
+| `Tipo de cambio` | Resultado del refresco | Permite ver todos los cambios, solo nuevos, modificados o no detectados. |
+| `Acciones` | Resultado del refresco | Permite eliminar del inventario los no detectados tras pedir confirmación; no actúa sobre la red. |
+| `Mostrar todos` | Mapa o vista vacía | Quita los filtros activos y recupera el inventario completo. |
 | Doble click en equipo | Lista o mapa | Abre el mejor HTTP/HTTPS detectado, si existe. |
 | `Marcar router` | Detalle o menu contextual | Usa el equipo como nodo principal del mapa. |
 | `Salida Internet` | Detalle o menu contextual | Marca el gateway o salida principal. |
