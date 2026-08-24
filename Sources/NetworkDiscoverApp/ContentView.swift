@@ -144,10 +144,25 @@ private struct ScanSidebar: View {
                     HStack {
                         Label("Timeout", systemImage: "timer")
                         Spacer()
-                        Text("\(model.timeout, specifier: "%.1f") s")
+                        Text("\(model.timeout, specifier: "%.0f") s")
                             .foregroundStyle(.secondary)
                     }
-                    Slider(value: $model.timeout, in: 0.2...3.0, step: 0.1)
+                    Slider(
+                        value: $model.timeout,
+                        in: ScanTimeoutPolicy.supportedRange,
+                        step: ScanTimeoutPolicy.step
+                    ) {
+                        Text("Timeout")
+                    } minimumValueLabel: {
+                        Text("1 s")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } maximumValueLabel: {
+                        Text("30 s")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .help("Tiempo máximo por prueba de red")
 
                     Stepper(value: $model.concurrency, in: 1...256, step: 1) {
                         Label("Concurrencia \(model.concurrency)", systemImage: "speedometer")

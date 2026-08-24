@@ -89,6 +89,17 @@ public extension HostDiscovery {
     }
 }
 
+public enum ScanTimeoutPolicy {
+    public static let supportedRange: ClosedRange<TimeInterval> = 1...30
+    public static let defaultValue: TimeInterval = 5
+    public static let step: TimeInterval = 1
+
+    public static func clamped(_ timeout: TimeInterval) -> TimeInterval {
+        guard timeout.isFinite else { return defaultValue }
+        return min(max(timeout, supportedRange.lowerBound), supportedRange.upperBound)
+    }
+}
+
 public struct ScanConfiguration: Hashable, Codable, Sendable {
     public var segment: String
     public var ports: [Int]
@@ -100,17 +111,50 @@ public struct ScanConfiguration: Hashable, Codable, Sendable {
     public init(
         segment: String,
         ports: [Int] = PortCatalog.defaultPorts.map(\.port),
-        timeout: TimeInterval = 0.7,
+        timeout: TimeInterval = ScanTimeoutPolicy.defaultValue,
         concurrency: Int = 64,
         includePing: Bool = true,
         maximumHosts: Int = 4096
     ) {
         self.segment = segment
         self.ports = ports
-        self.timeout = timeout
+        self.timeout = ScanTimeoutPolicy.clamped(timeout)
         self.concurrency = concurrency
         self.includePing = includePing
         self.maximumHosts = maximumHosts
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case segment
+        case ports
+        case timeout
+        case concurrency
+        case includePing
+        case maximumHosts
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        segment = try container.decode(String.self, forKey: .segment)
+        ports = try container.decodeIfPresent([Int].self, forKey: .ports)
+            ?? PortCatalog.defaultPorts.map(\.port)
+        timeout = ScanTimeoutPolicy.clamped(
+            try container.decodeIfPresent(TimeInterval.self, forKey: .timeout)
+                ?? ScanTimeoutPolicy.defaultValue
+        )
+        concurrency = try container.decodeIfPresent(Int.self, forKey: .concurrency) ?? 64
+        includePing = try container.decodeIfPresent(Bool.self, forKey: .includePing) ?? true
+        maximumHosts = try container.decodeIfPresent(Int.self, forKey: .maximumHosts) ?? 4096
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(segment, forKey: .segment)
+        try container.encode(ports, forKey: .ports)
+        try container.encode(ScanTimeoutPolicy.clamped(timeout), forKey: .timeout)
+        try container.encode(concurrency, forKey: .concurrency)
+        try container.encode(includePing, forKey: .includePing)
+        try container.encode(maximumHosts, forKey: .maximumHosts)
     }
 }
 

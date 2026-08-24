@@ -30,7 +30,17 @@ struct NetDiscoverCLI {
         let portsText = parser.value(for: "--ports") ?? parser.value(for: "-p") ??
             PortCatalog.defaultPorts.map { String($0.port) }.joined(separator: ",")
         let ports = try PortCatalog.parsePorts(portsText)
-        let timeout = Double(parser.value(for: "--timeout") ?? "") ?? 0.7
+        let timeout: TimeInterval
+        if let timeoutText = parser.value(for: "--timeout") {
+            guard let parsedTimeout = Double(timeoutText),
+                  ScanTimeoutPolicy.supportedRange.contains(parsedTimeout)
+            else {
+                throw CLIError.invalidTimeout(timeoutText)
+            }
+            timeout = parsedTimeout
+        } else {
+            timeout = ScanTimeoutPolicy.defaultValue
+        }
         let concurrency = Int(parser.value(for: "--concurrency") ?? "") ?? 64
         let includePing = !parser.hasFlag("--no-ping")
         let json = parser.hasFlag("--json")
@@ -103,7 +113,7 @@ struct NetDiscoverCLI {
 
             Opciones:
               --ports, -p       Puertos TCP separados por coma o rangos. Por defecto: \(PortCatalog.defaultPorts.map { String($0.port) }.joined(separator: ","))
-              --timeout         Timeout por prueba en segundos. Por defecto: 0.7
+              --timeout         Timeout por prueba entre 1 y 30 segundos. Por defecto: 5
               --concurrency     Hosts en paralelo. Por defecto: 64
               --no-ping         No ejecutar ping ICMP.
               --json            Devuelve los resultados como JSON.
@@ -145,9 +155,15 @@ private struct ArgumentParser {
 
 private enum CLIError: LocalizedError {
     case missingSegment
+    case invalidTimeout(String)
 
     var errorDescription: String? {
-        "Falta el segmento de red. Ejemplo: 192.168.1.0/24"
+        switch self {
+        case .missingSegment:
+            return "Falta el segmento de red. Ejemplo: 192.168.1.0/24"
+        case .invalidTimeout(let value):
+            return "Timeout no válido: \(value). Usa un valor entre 1 y 30 segundos."
+        }
     }
 }
 

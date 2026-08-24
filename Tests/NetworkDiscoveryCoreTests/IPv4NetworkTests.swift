@@ -29,6 +29,37 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertEqual(try PortCatalog.parsePorts("22,80,80,500-502"), [22, 80, 500, 501, 502])
     }
 
+    func testScanTimeoutPolicyDefaultsAndClampsSupportedRange() throws {
+        XCTAssertEqual(ScanTimeoutPolicy.supportedRange, 1...30)
+        XCTAssertEqual(ScanTimeoutPolicy.defaultValue, 5)
+        XCTAssertEqual(ScanTimeoutPolicy.clamped(0.5), 1)
+        XCTAssertEqual(ScanTimeoutPolicy.clamped(12), 12)
+        XCTAssertEqual(ScanTimeoutPolicy.clamped(45), 30)
+        XCTAssertEqual(ScanTimeoutPolicy.clamped(.infinity), 5)
+
+        let configuration = ScanConfiguration(segment: "192.168.1.0/24", timeout: 45)
+        XCTAssertEqual(configuration.timeout, 30)
+
+        let encoded = try JSONEncoder().encode(configuration)
+        let decoded = try JSONDecoder().decode(ScanConfiguration.self, from: encoded)
+        XCTAssertEqual(decoded.timeout, 30)
+
+        let legacyData = Data(
+            """
+            {
+              "segment": "192.168.1.0/24",
+              "ports": [80],
+              "timeout": 0.7,
+              "concurrency": 20,
+              "includePing": true,
+              "maximumHosts": 4096
+            }
+            """.utf8
+        )
+        let legacyConfiguration = try JSONDecoder().decode(ScanConfiguration.self, from: legacyData)
+        XCTAssertEqual(legacyConfiguration.timeout, 1)
+    }
+
     func testSemanticVersionParsesTagsAndComparesNumerically() throws {
         let current = try XCTUnwrap(SemanticVersion("0.1.9"))
         let update = try XCTUnwrap(SemanticVersion("v0.1.10"))

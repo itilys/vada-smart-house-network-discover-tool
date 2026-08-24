@@ -52,7 +52,7 @@ struct RefreshStatusSummary: Equatable {
 final class AppModel: ObservableObject {
     @Published var segment: String = LocalNetwork.suggestedCIDR() ?? "192.168.1.0/24" { didSet { markDirtyIfNeeded() } }
     @Published var portsText: String = PortCatalog.defaultPorts.map { String($0.port) }.joined(separator: ",") { didSet { markDirtyIfNeeded() } }
-    @Published var timeout: Double = 0.7 { didSet { markDirtyIfNeeded() } }
+    @Published var timeout: Double = ScanTimeoutPolicy.defaultValue { didSet { markDirtyIfNeeded() } }
     @Published var concurrency: Int = 64 { didSet { markDirtyIfNeeded() } }
     @Published var includePing: Bool = true { didSet { markDirtyIfNeeded() } }
     @Published var searchText: String = "" { didSet { refreshVisibleHosts() } }
@@ -877,7 +877,7 @@ final class AppModel: ObservableObject {
 
         segment = document.configuration.segment
         portsText = document.configuration.ports.map(String.init).joined(separator: ",")
-        timeout = document.configuration.timeout
+        timeout = ScanTimeoutPolicy.clamped(document.configuration.timeout)
         concurrency = document.configuration.concurrency
         includePing = document.configuration.includePing
         hosts = document.hosts.sorted { IPv4Address.sortKey(for: $0.ipAddress) < IPv4Address.sortKey(for: $1.ipAddress) }

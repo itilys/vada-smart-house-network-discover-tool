@@ -36,15 +36,15 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.2.1 |
-| Última actualización | 2026-08-10 |
+| Versión publicada | 0.2.2 |
+| Última actualización | 2026-08-24 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
 ## Funcionalidad
 
 - Descubrimiento IPv4 por segmento CIDR, rango o comodín.
 - Ping ICMP opcional en macOS.
-- Escaneo TCP con timeout y concurrencia limitada.
+- Escaneo TCP con timeout configurable entre 1 y 30 segundos, 5 segundos por defecto, y concurrencia limitada.
 - Catálogo de puertos comunes: SSH, HTTP, HTTPS, Modbus TCP, SMB, RTSP, MQTT, Airzone HTTP, RDP, VNC, impresoras y bases de datos.
 - DNS inverso cuando está disponible.
 - MAC best-effort por ARP en redes locales.
@@ -160,7 +160,7 @@ Opciones principales:
 | Opcion | Uso |
 | --- | --- |
 | `--ports`, `-p` | Puertos TCP separados por coma o rangos. |
-| `--timeout` | Timeout por prueba en segundos. |
+| `--timeout` | Timeout por prueba entre 1 y 30 segundos; por defecto, 5 segundos. |
 | `--concurrency` | Hosts en paralelo. |
 | `--no-ping` | Desactiva ping ICMP. |
 | `--json` | Devuelve resultados como JSON. |
