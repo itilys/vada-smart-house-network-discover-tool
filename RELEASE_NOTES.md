@@ -1,19 +1,16 @@
-# VaDa Network Discover 0.2.1
+# VaDa Network Discover 0.2.2
 
-Actualización de UX centrada en hacer más clara la comparación entre el inventario y el último refresco.
+Actualización centrada en mejorar el descubrimiento de equipos lentos o saturados durante un escaneo o refresco.
 
 Incluye:
 
-- métricas del último refresco separadas de los controles interactivos;
-- controles segmentados visibles para mostrar todos, cambios, presentes o sin cambios;
-- segundo nivel de filtro para nuevos, modificados y no detectados;
-- filtros de tipo, puerto y ordenación con etiquetas explícitas;
-- progreso dedicado mientras se actualiza la red;
-- indicador de vista filtrada y botón `Mostrar todos` en el mapa;
-- acción confirmada para eliminar equipos no detectados del inventario local;
-- estados vacíos con acceso directo para restablecer filtros;
-- filtros sincronizados entre la lista, el mapa y las exportaciones.
+- timeout configurable entre 1 y 30 segundos en la App;
+- valor inicial de 5 segundos para nuevos escaneos;
+- límites visibles de 1 y 30 segundos junto al control;
+- la misma política de timeout en la App, `NetworkDiscoveryCore` y la CLI;
+- validación de valores fuera de rango en `--timeout`;
+- compatibilidad con documentos guardados, normalizando únicamente valores fuera del nuevo rango.
 
-`No detectado` significa que el equipo no respondió en el último refresco; no confirma por sí solo que haya sido retirado de la red.
+Un timeout mayor puede mejorar la detección de equipos con respuesta lenta, pero también aumenta la duración máxima del escaneo cuando un equipo o puerto no responde.
 
 La build macOS está firmada ad-hoc y no notarizada por Apple.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 - 2026-08-24
+
+- Amplía el timeout configurable de la App al rango de 1 a 30 segundos.
+- Cambia el timeout inicial de nuevos escaneos a 5 segundos.
+- Unifica el valor inicial y los límites entre la App, el core y la CLI.
+- Normaliza al rango admitido los timeouts cargados desde documentos anteriores.
+- Añade límites visibles al slider y validación del argumento `--timeout` de la CLI.
+
 ## 0.2.1 - 2026-08-10
 
 - Separa las métricas informativas de los controles que filtran el inventario.
