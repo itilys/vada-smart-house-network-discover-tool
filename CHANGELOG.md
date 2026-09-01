@@ -1,5 +1,11 @@
 # Changelog
 
+## Sin publicar
+
+- Evita que un refresco conserve dos registros con la misma IP cuando cambia la asociación entre IP y MAC.
+- Repara al abrir los documentos anteriores afectados, conservando el registro más reciente de cada IP.
+- Evita el cierre inesperado de la App al reconstruir los estados de refresco de un documento con identificadores repetidos.
+
 ## 0.2.2 - 2026-08-24
 
 - Amplía el timeout configurable de la App al rango de 1 a 30 segundos.

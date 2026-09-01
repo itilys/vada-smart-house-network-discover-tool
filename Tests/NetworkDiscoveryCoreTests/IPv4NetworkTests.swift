@@ -478,6 +478,105 @@ final class IPv4NetworkTests: XCTestCase {
         XCTAssertNil(decoded.refreshComparison)
     }
 
+    func testSavedScanRemovesDuplicateHostIDsAndKeepsNewestRecord() throws {
+        let olderHost = HostDiscovery(
+            ipAddress: "192.168.1.40",
+            hostname: "old-device.local",
+            pingResponded: true,
+            systemType: "Equipo con ping",
+            openPorts: [],
+            discoveredAt: Date(timeIntervalSince1970: 10)
+        )
+        let newerHost = HostDiscovery(
+            ipAddress: "192.168.1.40",
+            hostname: "current-device.local",
+            pingResponded: true,
+            systemType: "Servicio web / dispositivo",
+            openPorts: [
+                OpenPort(port: 80, name: "HTTP", category: .web)
+            ],
+            discoveredAt: Date(timeIntervalSince1970: 20)
+        )
+        let document = SavedScan(
+            configuration: ScanConfiguration(segment: "192.168.1.0/24"),
+            hosts: [olderHost, newerHost],
+            refreshComparison: RefreshComparison(statuses: [newerHost.id: .updated])
+        )
+
+        XCTAssertEqual(document.hosts.count, 1)
+        XCTAssertEqual(document.hosts.first, newerHost)
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let encoded = try encoder.encode(document)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(SavedScan.self, from: encoded)
+
+        XCTAssertEqual(decoded.hosts.count, 1)
+        XCTAssertEqual(decoded.hosts.first, newerHost)
+        XCTAssertEqual(decoded.refreshComparison?.statuses[newerHost.id], .updated)
+    }
+
+    func testSavedScanDecoderRepairsDuplicateHostsFromExistingJSON() throws {
+        let data = Data(
+            """
+            {
+              "configuration": {
+                "concurrency": 20,
+                "includePing": true,
+                "maximumHosts": 4096,
+                "ports": [80],
+                "segment": "192.168.1.0/24",
+                "timeout": 5
+              },
+              "hosts": [
+                {
+                  "discoveredAt": "2026-08-01T10:00:00Z",
+                  "hostname": "old-device.local",
+                  "ipAddress": "192.168.1.40",
+                  "openPorts": [],
+                  "pingResponded": true,
+                  "systemType": "Equipo con ping"
+                },
+                {
+                  "discoveredAt": "2026-08-02T10:00:00Z",
+                  "hostname": "current-device.local",
+                  "ipAddress": "192.168.1.40",
+                  "openPorts": [],
+                  "pingResponded": true,
+                  "systemType": "Equipo con ping"
+                }
+              ],
+              "annotations": {
+                "192.168.1.40": {
+                  "addressAssignment": "staticAddress",
+                  "isMissing": true,
+                  "section": "Zona técnica"
+                }
+              },
+              "refreshComparison": {
+                "completedAt": "2026-08-02T10:01:00Z",
+                "statuses": {
+                  "192.168.1.40": "missing"
+                }
+              }
+            }
+            """.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let decoded = try decoder.decode(SavedScan.self, from: data)
+
+        XCTAssertEqual(decoded.hosts.count, 1)
+        XCTAssertEqual(decoded.hosts.first?.hostname, "current-device.local")
+        XCTAssertEqual(decoded.annotations["192.168.1.40"]?.addressAssignment, .staticAddress)
+        XCTAssertEqual(decoded.annotations["192.168.1.40"]?.section, "Zona técnica")
+        XCTAssertEqual(decoded.annotations["192.168.1.40"]?.isMissing, false)
+        XCTAssertEqual(decoded.refreshComparison?.statuses["192.168.1.40"], .updated)
+    }
+
     func testRefreshComparisonCountsEveryStatus() {
         let comparison = RefreshComparison(
             completedAt: Date(timeIntervalSince1970: 100),

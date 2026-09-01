@@ -344,7 +344,8 @@ public struct SavedScan: Hashable, Codable, Sendable {
         self.schemaVersion = schemaVersion
         self.savedAt = savedAt
         self.configuration = configuration
-        self.hosts = hosts
+        let normalizedHosts = Self.deduplicatedHosts(hosts)
+        self.hosts = normalizedHosts.hosts
         let resolvedRouterHostIDs = routerHostIDs.union(routerHostID.map { [$0] } ?? [])
         self.routerHostID = defaultInternetHostID ?? routerHostID ?? resolvedRouterHostIDs.sorted().first
         self.routerHostIDs = resolvedRouterHostIDs
@@ -353,6 +354,7 @@ public struct SavedScan: Hashable, Codable, Sendable {
         self.annotations = annotations
         self.mapOrganization = mapOrganization
         self.refreshComparison = refreshComparison
+        repairMetadata(for: normalizedHosts.duplicateHostIDs)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -374,7 +376,8 @@ public struct SavedScan: Hashable, Codable, Sendable {
         schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? Date()
         configuration = try container.decode(ScanConfiguration.self, forKey: .configuration)
-        hosts = try container.decode([HostDiscovery].self, forKey: .hosts)
+        let normalizedHosts = Self.deduplicatedHosts(try container.decode([HostDiscovery].self, forKey: .hosts))
+        hosts = normalizedHosts.hosts
         routerHostID = try container.decodeIfPresent(HostDiscovery.ID.self, forKey: .routerHostID)
         routerHostIDs = try container.decodeIfPresent(Set<HostDiscovery.ID>.self, forKey: .routerHostIDs) ??
             Set(routerHostID.map { [$0] } ?? [])
@@ -389,6 +392,46 @@ public struct SavedScan: Hashable, Codable, Sendable {
         }
         if let defaultInternetHostID {
             routerHostIDs.insert(defaultInternetHostID)
+        }
+        repairMetadata(for: normalizedHosts.duplicateHostIDs)
+    }
+
+    private static func deduplicatedHosts(
+        _ hosts: [HostDiscovery]
+    ) -> (hosts: [HostDiscovery], duplicateHostIDs: Set<HostDiscovery.ID>) {
+        var hostByID: [HostDiscovery.ID: HostDiscovery] = [:]
+        var hostIDs: [HostDiscovery.ID] = []
+        var duplicateHostIDs = Set<HostDiscovery.ID>()
+
+        for host in hosts {
+            guard let existingHost = hostByID[host.id] else {
+                hostIDs.append(host.id)
+                hostByID[host.id] = host
+                continue
+            }
+
+            duplicateHostIDs.insert(host.id)
+            if host.discoveredAt > existingHost.discoveredAt {
+                hostByID[host.id] = host
+            }
+        }
+
+        return (hostIDs.compactMap { hostByID[$0] }, duplicateHostIDs)
+    }
+
+    private mutating func repairMetadata(for duplicateHostIDs: Set<HostDiscovery.ID>) {
+        guard !duplicateHostIDs.isEmpty else { return }
+
+        for hostID in duplicateHostIDs {
+            if var annotation = annotations[hostID] {
+                annotation.isMissing = false
+                annotations[hostID] = annotation
+            }
+
+            if var comparison = refreshComparison, comparison.statuses[hostID] == .missing {
+                comparison.statuses[hostID] = .updated
+                refreshComparison = comparison
+            }
         }
     }
 }
