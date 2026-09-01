@@ -36,7 +36,7 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.2.2 |
+| Versión publicada | 0.2.3 |
 | Última actualización | 2026-08-24 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
@@ -57,7 +57,7 @@ flowchart LR
 - Controles visuales compartidos entre lista y mapa para mostrar todos, cambios, presentes o una categoría concreta.
 - Mapa visual organizable por plano, subred, asignación IP, sección o tipo de equipo, con router marcado, zoom, pan y export Mermaid.
 - Exportación del mapa a PNG con marca VaDa SmartHouse.
-- Guardado/carga de escaneos en JSON.
+- Guardado/carga de escaneos en JSON, con reparación compatible de registros duplicados creados por versiones anteriores.
 - Refresco de escaneo conservando anotaciones, equipos estáticos y reservas DHCP.
 
 ## Flujo de Uso

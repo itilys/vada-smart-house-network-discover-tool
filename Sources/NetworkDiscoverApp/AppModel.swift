@@ -741,6 +741,7 @@ final class AppModel: ObservableObject {
         }
         var consumedPreviousHostIDs = Set<HostDiscovery.ID>()
         var mergedHosts: [HostDiscovery] = []
+        var mergedHostIDs = Set<HostDiscovery.ID>()
         var mergedAnnotations: [HostDiscovery.ID: HostAnnotation] = [:]
         var nextRefreshStatuses: [HostDiscovery.ID: HostRefreshStatus] = [:]
         var newRouterHostIDs = previousRouterHostIDs
@@ -755,6 +756,7 @@ final class AppModel: ObservableObject {
             ) {
                 consumedPreviousHostIDs.insert(previousHost.id)
                 mergedHosts.append(discoveredHost)
+                mergedHostIDs.insert(discoveredHost.id)
 
                 var annotation = previousAnnotations[previousHost.id] ?? HostAnnotation()
                 annotation.isMissing = false
@@ -781,17 +783,20 @@ final class AppModel: ObservableObject {
                 }
             } else {
                 mergedHosts.append(discoveredHost)
+                mergedHostIDs.insert(discoveredHost.id)
                 mergedAnnotations[discoveredHost.id] = HostAnnotation(lastSeen: now)
                 nextRefreshStatuses[discoveredHost.id] = .new
             }
         }
 
         for previousHost in previousHosts where !consumedPreviousHostIDs.contains(previousHost.id) {
+            guard !mergedHostIDs.contains(previousHost.id) else { continue }
             var annotation = previousAnnotations[previousHost.id] ?? HostAnnotation()
 
             annotation.isMissing = true
             annotation.lastSeen = annotation.lastSeen ?? previousHost.discoveredAt
             mergedHosts.append(previousHost)
+            mergedHostIDs.insert(previousHost.id)
             mergedAnnotations[previousHost.id] = annotation
             nextRefreshStatuses[previousHost.id] = .missing
         }
@@ -799,7 +804,6 @@ final class AppModel: ObservableObject {
         mergedHosts.sort {
             IPv4Address.sortKey(for: $0.ipAddress) < IPv4Address.sortKey(for: $1.ipAddress)
         }
-        let mergedHostIDs = Set(mergedHosts.map(\.id))
         routerHostIDs = newRouterHostIDs.filter { mergedHostIDs.contains($0) }
         if let newDefaultInternetHostID, mergedHostIDs.contains(newDefaultInternetHostID) {
             defaultInternetHostID = newDefaultInternetHostID
@@ -899,10 +903,13 @@ final class AppModel: ObservableObject {
         isScanning = false
         isRefreshing = false
         if let persistedComparison = document.refreshComparison {
-            let statuses = Dictionary(uniqueKeysWithValues: hosts.map { host in
-                let fallback: HostRefreshStatus = hostAnnotations[host.id]?.isMissing == true ? .missing : .unchanged
-                return (host.id, persistedComparison.statuses[host.id] ?? fallback)
-            })
+            let statuses = Dictionary(
+                hosts.map { host in
+                    let fallback: HostRefreshStatus = hostAnnotations[host.id]?.isMissing == true ? .missing : .unchanged
+                    return (host.id, persistedComparison.statuses[host.id] ?? fallback)
+                },
+                uniquingKeysWith: { existing, _ in existing }
+            )
             refreshComparison = RefreshComparison(
                 completedAt: persistedComparison.completedAt,
                 statuses: statuses
