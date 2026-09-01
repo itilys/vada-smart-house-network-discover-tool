@@ -1,16 +1,16 @@
-# VaDa Network Discover 0.2.2
+# VaDa Network Discover 0.2.3
 
-Actualización centrada en mejorar el descubrimiento de equipos lentos o saturados durante un escaneo o refresco.
+Actualización correctiva para documentos guardados por versiones anteriores que contienen accidentalmente más de un registro con la misma IP.
 
 Incluye:
 
-- timeout configurable entre 1 y 30 segundos en la App;
-- valor inicial de 5 segundos para nuevos escaneos;
-- límites visibles de 1 y 30 segundos junto al control;
-- la misma política de timeout en la App, `NetworkDiscoveryCore` y la CLI;
-- validación de valores fuera de rango en `--timeout`;
-- compatibilidad con documentos guardados, normalizando únicamente valores fuera del nuevo rango.
+- evita que un refresco vuelva a conservar dos equipos con el mismo identificador;
+- repara automáticamente los documentos afectados al abrirlos;
+- conserva el registro descubierto más recientemente y las anotaciones manuales del equipo;
+- corrige el estado inconsistente que podía mostrar el registro reparado como no detectado;
+- evita el cierre inesperado de la App al reconstruir la comparación del último refresco;
+- mantiene sin cambios el formato del documento y la compatibilidad con escaneos anteriores.
 
-Un timeout mayor puede mejorar la detección de equipos con respuesta lenta, pero también aumenta la duración máxima del escaneo cuando un equipo o puerto no responde.
+Esta versión no añade tráfico de red, telemetría ni servicios externos. La reparación se realiza localmente al abrir el archivo.
 
 La build macOS está firmada ad-hoc y no notarizada por Apple.

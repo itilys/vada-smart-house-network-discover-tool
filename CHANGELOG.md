@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## 0.2.3 - 2026-09-01
 
 - Evita que un refresco conserve dos registros con la misma IP cuando cambia la asociación entre IP y MAC.
 - Repara al abrir los documentos anteriores afectados, conservando el registro más reciente de cada IP.

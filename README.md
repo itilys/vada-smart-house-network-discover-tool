@@ -36,7 +36,7 @@ flowchart LR
 | Variante inicial | iPadOS/iPad Simulator experimental |
 | Lenguaje | Swift Package Manager |
 | Licencia | Apache License 2.0 |
-| Versión publicada | 0.2.2 |
+| Versión publicada | 0.2.3 |
 | Última actualización | 2026-08-24 |
 | Bundle ID macOS | `com.vadasmarthouse.networkdiscover` |
 
